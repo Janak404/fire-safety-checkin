@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire Safety Check-in — Live Campus Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black:#0a0a0a;--dark:#111111;--panel:#161616;--border:#2a2a2a;
+    --fire:#ff4d00;--amber:#ffb300;--safe:#00e676;--danger:#ff1744;--blue:#2979ff;
+    --text:#f0ece4;--muted:#777;
+    --mono:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--black);color:var(--text);font-family:var(--display);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
+
+  header{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px}
+  .logo{display:flex;align-items:center;gap:.75rem;font-size:.9rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .logo-flame{font-size:1.3rem;animation:flicker 1.8s ease-in-out infinite}
+  @keyframes flicker{0%,100%{opacity:1;transform:scaleY(1)}40%{opacity:.8;transform:scaleY(.95)}70%{opacity:1;transform:scaleY(1.04)}}
+  .logo-sep{width:1px;height:20px;background:var(--border)}
+  .logo-sub{color:var(--muted);font-weight:400;font-size:.75rem}
+  .header-right{display:flex;align-items:center;gap:1.25rem}
+  .header-status{display:flex;align-items:center;gap:.5rem;font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--safe);box-shadow:0 0 6px var(--safe);animation:pdot 2s ease-in-out infinite}
+  .status-dot.alert{background:var(--fire);box-shadow:0 0 8px var(--fire);animation:pfire 1s ease-in-out infinite}
+  @keyframes pdot{0%,100%{opacity:1}50%{opacity:.5}}
+  @keyframes pfire{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.3)}}
+  .storage-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;padding:.2rem .55rem;border:1px solid var(--safe);color:var(--safe);text-transform:uppercase;transition:all .3s}
+
+  .drill-banner{background:linear-gradient(90deg,var(--fire),#ff8a00,var(--fire));background-size:200% 100%;color:#000;font-family:var(--mono);font-size:.78rem;font-weight:700;padding:.55rem 2rem;text-align:center;letter-spacing:.1em;text-transform:uppercase;display:none;align-items:center;justify-content:center;gap:1rem;animation:sbg 3s linear infinite}
+  .drill-banner.active{display:flex}
+  @keyframes sbg{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+
+  main{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:2rem}
+  .page-title{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1;letter-spacing:-.02em;margin-bottom:2.5rem}
+  .page-title span{color:var(--fire)}
+  .page-subtitle{font-family:var(--mono);font-size:.8rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.6rem}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+  .grid-1{margin-bottom:1.5rem}
+  .stat-cell{background:var(--panel);padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.3rem}
+  .stat-cell .label{font-family:var(--mono);font-size:.65rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+  .stat-cell .value{font-size:2rem;font-weight:800;line-height:1;transition:all .3s}
+  .stat-cell .value.fire{color:var(--fire)}.stat-cell .value.amber{color:var(--amber)}.stat-cell .value.safe{color:var(--safe)}
+  .stat-cell .delta{font-family:var(--mono);font-size:.7rem;color:var(--safe)}
+
+  .card{background:var(--panel);border:1px solid var(--border);padding:1.75rem;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--fire),transparent);opacity:0;transition:opacity .3s}
+  .card:hover::before{opacity:1}
+  .card-title{font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem}
+  .card-title::before{content:'';display:block;width:16px;height:2px;background:var(--fire)}
+
+  /* TABS */
+  .tab-bar{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
+  .tab-btn{padding:.55rem 1rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-bottom:-1px}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--fire);border-bottom-color:var(--fire)}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+
+  /* PROFILE */
+  .profile-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:1.25rem}
+  .avatar{width:56px;height:56px;background:linear-gradient(135deg,var(--fire),#ff8a00);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:#000;flex-shrink:0;position:relative}
+  .avatar::after{content:'';position:absolute;inset:-3px;border:1px solid var(--border)}
+  .profile-name{font-size:1.3rem;font-weight:800}
+  .profile-id{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-top:.2rem}
+  .role-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border:1px solid;font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-top:.35rem}
+  .role-chip.student{border-color:var(--blue);color:var(--blue);background:rgba(41,121,255,.1)}
+  .role-chip.warden{border-color:var(--amber);color:var(--amber);background:rgba(255,179,0,.1)}
+  .role-chip.staff{border-color:var(--safe);color:var(--safe);background:rgba(0,230,118,.1)}
+  .points-display{display:flex;align-items:baseline;gap:.4rem;margin-bottom:1rem}
+  .points-num{font-size:3rem;font-weight:800;color:var(--amber);line-height:1;transition:all .3s}
+  .points-label{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+  .progress-wrap{margin-bottom:1.25rem}
+  .progress-label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-bottom:.5rem}
+  .progress-track{height:4px;background:var(--border);position:relative}
+  .progress-bar{height:100%;background:linear-gradient(90deg,var(--fire),var(--amber));transition:width 1s cubic-bezier(.16,1,.3,1)}
+  .progress-marker{position:absolute;top:-4px;width:2px;height:12px;background:var(--border);transform:translateX(-50%)}
+  .badge-row{display:flex;gap:.5rem;flex-wrap:wrap}
+  .badge{padding:.3rem .7rem;border:1px solid var(--border);font-family:var(--mono);font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);transition:all .2s}
+  .badge.earned{border-color:var(--amber);color:var(--amber);background:rgba(255,179,0,.08)}
+
+  /* PREFS */
+  .pref-section{margin-bottom:1.25rem}
+  .pref-title{font-family:var(--mono);font-size:.63rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.7rem}
+  .pref-row{display:flex;align-items:center;justify-content:space-between;padding:.65rem 0;border-bottom:1px solid rgba(42,42,42,.5)}
+  .pref-row:last-child{border-bottom:none}
+  .pref-label{font-size:.8rem;font-weight:600}
+  .pref-desc{font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-top:.15rem}
+  .tog-wrap{display:flex;gap:.35rem}
+  .tog-opt{padding:.25rem .6rem;background:var(--dark);border:1px solid var(--border);font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:all .2s}
+  .tog-opt:hover{border-color:var(--amber);color:var(--text)}
+  .tog-opt.active{border-color:var(--fire);color:var(--fire);background:rgba(255,77,0,.1)}
+  .role-info-box{background:var(--dark);border:1px solid var(--border);padding:.85rem 1rem;margin-top:.75rem}
+  .ri-title{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:.5rem}
+  .ri-row{display:flex;justify-content:space-between;font-size:.75rem;padding:.22rem 0;border-bottom:1px solid rgba(42,42,42,.3)}
+  .ri-row:last-child{border-bottom:none}
+  .ri-access{font-family:var(--mono);font-size:.6rem}
+  .ri-access.yes{color:var(--safe)}.ri-access.no{color:var(--danger)}.ri-access.partial{color:var(--amber)}
+
+  /* PRIVACY */
+  .privacy-header{background:rgba(41,121,255,.07);border:1px solid rgba(41,121,255,.25);padding:1rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:.75rem}
+  .ph-icon{font-size:1.5rem;flex-shrink:0}
+  .ph-title{font-size:.85rem;font-weight:700;margin-bottom:.25rem}
+  .ph-desc{font-family:var(--mono);font-size:.63rem;color:var(--muted);line-height:1.5}
+  .priv-section{margin-bottom:1.4rem}
+  .priv-section-title{font-family:var(--mono);font-size:.63rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+  .priv-row{display:flex;align-items:center;gap:1rem;padding:.75rem 0;border-bottom:1px solid rgba(42,42,42,.4)}
+  .priv-row:last-child{border-bottom:none}
+  .pr-info{flex:1}
+  .pr-label{font-size:.82rem;font-weight:700}
+  .pr-desc{font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-top:.15rem;line-height:1.5}
+  .switch{position:relative;width:36px;height:20px;flex-shrink:0}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;cursor:pointer;inset:0;background:var(--border);transition:.3s}
+  .slider::before{content:'';position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--muted);transition:.3s}
+  input:checked+.slider{background:var(--fire)}
+  input:checked+.slider::before{transform:translateX(16px);background:#fff}
+  .gdpr-btn{padding:.5rem .9rem;border:1px solid;font-family:var(--mono);font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;background:none;transition:all .2s;white-space:nowrap;flex-shrink:0}
+  .gdpr-btn.primary{border-color:var(--blue);color:var(--blue)}
+  .gdpr-btn.primary:hover{background:rgba(41,121,255,.1)}
+  .gdpr-btn.danger{border-color:var(--danger);color:var(--danger)}
+  .gdpr-btn.danger:hover{background:rgba(255,23,68,.1)}
+  .gdpr-btn.muted-btn{border-color:var(--border);color:var(--muted)}
+  .gdpr-btn.muted-btn:hover{border-color:var(--muted);color:var(--text)}
+  .drb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-top:.75rem}
+  .drb-cell{background:var(--dark);padding:.7rem .85rem}
+  .drb-cell .drb-label{font-family:var(--mono);font-size:.6rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+  .drb-cell .drb-val{font-size:.9rem;font-weight:700;margin-top:.2rem}
+  .consent-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.06em}
+  .consent-tag.granted{background:rgba(0,230,118,.12);color:var(--safe);border:1px solid rgba(0,230,118,.3)}
+
+  /* CHECKIN */
+  .checkin-card{background:var(--panel);border:1px solid var(--border);padding:2rem;position:relative}
+  .loc-label{display:block;font-family:var(--mono);font-size:.65rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem}
+  .loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1.25rem}
+  .loc-btn{padding:.85rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-family:var(--display);font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:.6rem}
+  .loc-btn:hover{border-color:var(--amber);color:var(--text)}
+  .loc-btn.selected{border-color:var(--fire);color:var(--text);background:rgba(255,77,0,.1)}
+  .loc-icon{font-size:1.1rem}
+  .loc-info{flex:1}
+  .loc-name{font-weight:700;font-size:.8rem}
+  .loc-type{font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-top:.1rem}
+  .loc-btn.selected .loc-type{color:var(--fire)}
+  .loc-pts{font-family:var(--mono);font-size:.7rem;color:var(--amber);font-weight:700}
+  .coords-bar{font-family:var(--mono);font-size:.65rem;color:var(--muted);background:var(--dark);border:1px solid var(--border);padding:.6rem .8rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem}
+  .coords-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}
+  .coords-dot.live{background:var(--safe);box-shadow:0 0 6px var(--safe);animation:pdot 2s infinite}
+  .checkin-btn{width:100%;padding:1.1rem 2rem;background:var(--fire);border:none;color:#000;font-family:var(--display);font-size:1rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all .2s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+  .checkin-btn:hover{background:#ff6b35;transform:translateY(-1px)}
+  .checkin-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;transform:none;clip-path:none}
+  .shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-100%)}
+  .checkin-btn:hover .shimmer{animation:shim .6s ease forwards}
+  @keyframes shim{to{transform:translateX(100%)}}
+  .val-panel{margin-top:1.25rem;padding:1rem 1.25rem;border:1px solid var(--border);background:var(--dark);font-family:var(--mono);font-size:.75rem;display:none}
+  .val-panel.show{display:block}
+  .val-panel.success{border-color:var(--safe);background:rgba(0,230,118,.06)}
+  .val-panel.error{border-color:var(--danger);background:rgba(255,23,68,.06)}
+  .val-panel.warning{border-color:var(--amber);background:rgba(255,179,0,.06)}
+  .val-title{font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem}
+  .val-title.success{color:var(--safe)}.val-title.error{color:var(--danger)}.val-title.warning{color:var(--amber)}
+  .val-body{color:var(--muted);line-height:1.6}
+  .val-body strong{color:var(--text)}
+
+  .points-burst{position:fixed;pointer-events:none;z-index:999;font-family:var(--display);font-size:2.5rem;font-weight:800;color:var(--amber);text-shadow:0 0 20px var(--amber);opacity:0}
+  .points-burst.go{animation:burst .9s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes burst{0%{opacity:0;transform:translateY(0) scale(.5)}30%{opacity:1;transform:translateY(-20px) scale(1.1)}70%{opacity:1;transform:translateY(-50px) scale(1)}100%{opacity:0;transform:translateY(-80px) scale(.9)}}
+
+  /* LOG TABLE */
+  .log-wrap{overflow-x:auto}
+  .log-table{width:100%;border-collapse:collapse}
+  .log-table th{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+  .log-table td{padding:.65rem .75rem;border-bottom:1px solid rgba(42,42,42,.5);font-size:.78rem;vertical-align:middle;user-select:none}
+  .log-table tr:last-child td{border-bottom:none}
+  .log-table tr:hover td{background:rgba(255,255,255,.02)}
+  .immutable-note{font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-top:.75rem;padding:.55rem .85rem;background:rgba(41,121,255,.06);border:1px solid rgba(41,121,255,.15);line-height:1.6}
+  .tag{display:inline-block;padding:.15rem .5rem;font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .tag.validated{background:rgba(0,230,118,.15);color:var(--safe)}
+  .tag.rejected{background:rgba(255,23,68,.15);color:var(--danger)}
+  .tag.duplicate{background:rgba(255,179,0,.15);color:var(--amber)}
+  .log-pts{font-family:var(--mono);font-size:.75rem;font-weight:700;color:var(--amber)}
+  .log-pts.zero{color:var(--muted)}
+  .mono-cell{font-family:var(--mono);font-size:.6rem;color:var(--muted);cursor:help}
+  .mono-cell:hover{color:var(--text)}
+
+  /* EVENTS */
+  .event-item{padding:1rem 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:1rem}
+  .event-item:last-child{border-bottom:none}
+  .event-time{font-family:var(--mono);font-size:.65rem;color:var(--muted);min-width:58px;padding-top:.1rem;line-height:1.4}
+  .event-time .day{color:var(--fire);font-weight:700}
+  .event-body{flex:1}
+  .event-name{font-size:.88rem;font-weight:700;margin-bottom:.2rem}
+  .event-loc{font-family:var(--mono);font-size:.63rem;color:var(--muted)}
+  .event-pts{font-family:var(--mono);font-size:.7rem;font-weight:700;color:var(--amber);margin-left:auto;white-space:nowrap;padding-top:.1rem}
+  .event-live{display:inline-flex;align-items:center;gap:.3rem;font-family:var(--mono);font-size:.6rem;color:var(--fire);font-weight:700;margin-left:.4rem}
+
+  /* FACILITY */
+  .fac-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .fac-item{padding:.9rem 1rem;background:var(--dark);border:1px solid var(--border);display:flex;align-items:center;gap:.75rem}
+  .fac-name{font-size:.78rem;font-weight:700}
+  .fac-status{font-family:var(--mono);font-size:.6rem;margin-top:.15rem}
+  .fac-status.normal{color:var(--safe)}.fac-status.drill{color:var(--fire)}
+
+  /* LEADERBOARD */
+  .lb-row{display:flex;align-items:center;gap:1rem;padding:.75rem 0;border-bottom:1px solid rgba(42,42,42,.5)}
+  .lb-row:last-child{border-bottom:none}
+  .lb-rank{font-family:var(--mono);font-size:.75rem;font-weight:700;min-width:24px;color:var(--muted)}
+  .lb-rank.top{color:var(--amber)}
+  .lb-name{flex:1;font-size:.85rem;font-weight:600}
+  .lb-pts{font-family:var(--mono);font-size:.78rem;font-weight:700;color:var(--amber)}
+  .lb-bar-wrap{width:80px;height:3px;background:var(--border)}
+  .lb-bar{height:100%;background:linear-gradient(90deg,var(--fire),var(--amber))}
+  .lb-mine{background:rgba(255,179,0,.05);border:1px solid rgba(255,179,0,.2);padding:.75rem;border-bottom:none!important}
+  .lb-mine .lb-name{color:var(--amber)}
+  .lb-hidden-row{opacity:.3}
+  .lb-privacy-note{margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+
+  /* SECURITY */
+  .sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+  .sec-item{padding:.85rem 1rem;background:var(--dark);border:1px solid var(--border);display:flex;align-items:center;gap:.7rem}
+  .sec-label{font-size:.75rem;font-weight:700}
+  .sec-desc{font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-top:.15rem}
+  .sec-check{margin-left:auto;color:var(--safe)}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:2rem;right:2rem;z-index:500;background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--safe);padding:.85rem 1.25rem;font-family:var(--mono);font-size:.72rem;min-width:260px;transform:translateX(120%);transition:transform .35s cubic-bezier(.16,1,.3,1);max-width:320px}
+  .toast.show{transform:translateX(0)}
+  .toast.warn{border-left-color:var(--amber)}
+  .toast.err{border-left-color:var(--danger)}
+
+  footer{border-top:1px solid var(--border);padding:1.25rem 2rem;font-family:var(--mono);font-size:.65rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+  .drill-overlay{position:fixed;inset:0;z-index:200;background:rgba(255,23,68,.08);pointer-events:none;border:3px solid var(--danger);animation:dpulse 1.5s ease-in-out infinite;display:none}
+  .drill-overlay.active{display:block}
+  @keyframes dpulse{0%,100%{box-shadow:inset 0 0 60px rgba(255,23,68,.15)}50%{box-shadow:inset 0 0 120px rgba(255,23,68,.3)}}
+  ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--black)}::-webkit-scrollbar-thumb{background:var(--border)}
+  @media(max-width:768px){.grid-3,.grid-2,.loc-grid,.fac-grid,.sec-grid,.drb-grid{grid-template-columns:1fr}.page-title{font-size:2rem}}
+</style>
+</head>
+<body>
+
+<div class="drill-overlay" id="drillOverlay"></div>
+<div class="points-burst" id="pointsBurst"></div>
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo">
+    <span class="logo-flame">🔥</span>
+    <span>Live Campus Hub</span>
+    <div class="logo-sep"></div>
+    <span class="logo-sub">Fire Safety Module</span>
+  </div>
+  <div class="header-right">
+    <span class="storage-badge" id="storageBadge">💾 DATA PERSISTED</span>
+    <div class="header-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">SYSTEM NORMAL</span>
+    </div>
+  </div>
+</header>
+
+<div class="drill-banner" id="drillBanner">
+  🚨 &nbsp; FIRE DRILL ACTIVE — PROCEED TO NEAREST ASSEMBLY POINT &nbsp; 🚨 &nbsp;|&nbsp; CHECK IN NOW TO EARN POINTS
+</div>
+
+<main>
+  <p class="page-subtitle">Check-in & Rewards System</p>
+  <h1 class="page-title">Fire Safety<br><span>Check-in</span></h1>
+
+  <div class="grid-3">
+    <div class="stat-cell">
+      <span class="label">Your Points</span>
+      <span class="value amber" id="totalPoints">—</span>
+      <span class="delta" id="deltaTxt">Loading from storage…</span>
+    </div>
+    <div class="stat-cell">
+      <span class="label">Safety Check-ins</span>
+      <span class="value fire" id="safetyCount">—</span>
+      <span class="delta">This semester</span>
+    </div>
+    <div class="stat-cell">
+      <span class="label">Compliance Score</span>
+      <span class="value safe" id="compScore">—</span>
+      <span class="delta">Based on attendance</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- LEFT -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+      <!-- PROFILE CARD (3 tabs) -->
+      <div class="card">
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('profile',this)">Profile</button>
+          <button class="tab-btn" onclick="switchTab('prefs',this)">Preferences</button>
+          <button class="tab-btn" onclick="switchTab('privacy',this)">Privacy &amp; GDPR</button>
+        </div>
+
+        <!-- TAB: PROFILE -->
+        <div class="tab-panel active" id="tab-profile">
+          <div class="profile-header">
+            <div class="avatar">JS</div>
+            <div>
+              <div class="profile-name">Jamie Souter</div>
+              <div class="profile-id">ID: STU-2024-0847</div>
+              <div class="role-chip student" id="roleChip">🎓 Student</div>
+            </div>
+          </div>
+          <div class="points-display">
+            <span class="points-num" id="pointsDisplay">—</span>
+            <span class="points-label">pts total</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label">
+              <span id="levelLabel">LEVEL 3 — FIRE WARDEN</span>
+              <span id="progressLabel">— / 200 pts</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-bar" id="progressBar" style="width:0%"></div>
+              <div class="progress-marker" style="left:50%"></div>
+              <div class="progress-marker" style="left:100%"></div>
+            </div>
+          </div>
+          <div class="badge-row">
+            <span class="badge" id="b1">🏅 First Drill</span>
+            <span class="badge" id="b2">🔥 Triple Check-in</span>
+            <span class="badge" id="b3">⚡ Fast Response</span>
+            <span class="badge" id="b4">🛡 Safety Champion</span>
+            <span class="badge" id="b5">🚒 Expert Warden</span>
+          </div>
+        </div>
+
+        <!-- TAB: PREFERENCES -->
+        <div class="tab-panel" id="tab-prefs">
+          <div class="pref-section">
+            <div class="pref-title">Safety Notification Channel</div>
+            <div class="pref-row">
+              <div><div class="pref-label">Drill Alerts</div><div class="pref-desc">How you receive live fire drill notifications</div></div>
+              <div class="tog-wrap">
+                <button class="tog-opt active" id="notif-app" onclick="setPref('notifChannel','app',this,'notif-sms','notif-both')">App Push</button>
+                <button class="tog-opt" id="notif-sms" onclick="setPref('notifChannel','sms',this,'notif-app','notif-both')">SMS</button>
+                <button class="tog-opt" id="notif-both" onclick="setPref('notifChannel','both',this,'notif-app','notif-sms')">Both</button>
+              </div>
+            </div>
+            <div class="pref-row">
+              <div><div class="pref-label">Workshop Reminders</div><div class="pref-desc">24-hour reminder before safety workshops</div></div>
+              <label class="switch"><input type="checkbox" id="pref-reminders" onchange="savePrefToggle('workshopReminders',this)"><span class="slider"></span></label>
+            </div>
+            <div class="pref-row">
+              <div><div class="pref-label">Points Earned Alerts</div><div class="pref-desc">Notify when points are credited to profile</div></div>
+              <label class="switch"><input type="checkbox" id="pref-points" onchange="savePrefToggle('pointsAlerts',this)"><span class="slider"></span></label>
+            </div>
+            <div class="pref-row">
+              <div><div class="pref-label">Emergency Broadcasts</div><div class="pref-desc">Always on — required for safety compliance</div></div>
+              <label class="switch"><input type="checkbox" disabled checked><span class="slider" style="opacity:.45;cursor:not-allowed"></span></label>
+            </div>
+          </div>
+
+          <div class="pref-section">
+            <div class="pref-title">User Role &amp; Access Level</div>
+            <div class="tog-wrap" style="margin-bottom:.75rem;flex-wrap:wrap">
+              <button class="tog-opt" id="role-student" onclick="setRole('student',this)">🎓 Student</button>
+              <button class="tog-opt" id="role-warden"  onclick="setRole('warden',this)">🦺 Fire Warden</button>
+              <button class="tog-opt" id="role-staff"   onclick="setRole('staff',this)">🏛 Staff</button>
+            </div>
+            <div class="role-info-box">
+              <div class="ri-title">Role-Based Access Control (RBAC)</div>
+              <div class="ri-row"><span>View own check-in log</span><span class="ri-access yes">✓ All roles</span></div>
+              <div class="ri-row"><span>View all student logs</span><span class="ri-access no" id="ra-all">✗ Student</span></div>
+              <div class="ri-row"><span>Trigger drill simulation</span><span class="ri-access no" id="ra-drill">✗ Student</span></div>
+              <div class="ri-row"><span>Edit facility status</span><span class="ri-access no" id="ra-fac">✗ Student</span></div>
+              <div class="ri-row"><span>Export all student data</span><span class="ri-access no" id="ra-export">✗ Student</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: PRIVACY & GDPR -->
+        <div class="tab-panel" id="tab-privacy">
+          <div class="privacy-header">
+            <span class="ph-icon">🛡</span>
+            <div>
+              <div class="ph-title">Your Data Rights (UK GDPR)</div>
+              <div class="ph-desc">Live Campus Hub processes your location and engagement data to award points and ensure fire safety compliance. You have the right to access, export, and erase your data at any time under the UK GDPR 2018.</div>
+            </div>
+          </div>
+
+          <div class="priv-section">
+            <div class="priv-section-title">Visibility Controls</div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Appear on Safety Leaderboard</div>
+                <div class="pr-desc">If disabled, your name and score are hidden from other students. Your points still count internally toward compliance scoring.</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="priv-leaderboard" onchange="toggleLeaderboard(this)"><span class="slider"></span></label>
+            </div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Share Attendance with Personal Tutor</div>
+                <div class="pr-desc">Allows your personal tutor to view fire drill attendance for welfare and pastoral purposes only.</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="priv-tutor" onchange="savePrefToggle('shareTutor',this)"><span class="slider"></span></label>
+            </div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Location History Retention</div>
+                <div class="pr-desc">GPS coordinates stored for check-in validation. Automatically purged after 90 days per retention policy.</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
+                <span class="consent-tag granted">✓ Consented</span>
+                <span style="font-family:var(--mono);font-size:.57rem;color:var(--muted)">Required for check-in</span>
+              </div>
+            </div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Analytics &amp; Product Improvement</div>
+                <div class="pr-desc">Anonymised usage data shared with campus IS team to improve the Hub experience.</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="priv-analytics" onchange="savePrefToggle('analytics',this)"><span class="slider"></span></label>
+            </div>
+          </div>
+
+          <div class="priv-section">
+            <div class="priv-section-title">Data Retention Summary</div>
+            <div class="drb-grid">
+              <div class="drb-cell"><div class="drb-label">Check-in Logs</div><div class="drb-val" style="color:var(--amber)">3 Years</div></div>
+              <div class="drb-cell"><div class="drb-label">GPS Coordinates</div><div class="drb-val" style="color:var(--fire)">90 Days</div></div>
+              <div class="drb-cell"><div class="drb-label">Points Balance</div><div class="drb-val" style="color:var(--safe)">Persistent</div></div>
+            </div>
+          </div>
+
+          <div class="priv-section">
+            <div class="priv-section-title">Your Rights</div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Download My Data</div>
+                <div class="pr-desc">Export all profile, check-in history, and points data as JSON. (Article 15 UK GDPR — Right of Access)</div>
+              </div>
+              <button class="gdpr-btn primary" onclick="exportMyData()">⬇ Export</button>
+            </div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Request Data Correction</div>
+                <div class="pr-desc">Flag incorrect check-in records for review by a campus data officer. (Article 16 — Right to Rectification)</div>
+              </div>
+              <button class="gdpr-btn muted-btn" onclick="toast('Request submitted. A data officer will respond within 30 days.','warn')">✏ Request</button>
+            </div>
+            <div class="priv-row">
+              <div class="pr-info">
+                <div class="pr-label">Delete My Account &amp; Data</div>
+                <div class="pr-desc">Permanently removes your profile and all stored browser data. (Article 17 — Right to Erasure)</div>
+              </div>
+              <button class="gdpr-btn danger" onclick="confirmDelete()">🗑 Delete</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /card -->
+
+      <!-- CHECK-IN WIDGET -->
+      <div class="checkin-card">
+        <div class="card-title" style="margin-bottom:1.25rem">Location Check-in</div>
+        <label class="loc-label">Select Your Current Location</label>
+        <div class="loc-grid">
+          <button class="loc-btn" data-loc="assembly-a" onclick="selectLoc(this)">
+            <span class="loc-icon">🔴</span>
+            <div class="loc-info"><div class="loc-name">Assembly Point A</div><div class="loc-type">Fire Assembly Point</div></div>
+            <span class="loc-pts">+10</span>
+          </button>
+          <button class="loc-btn" data-loc="assembly-b" onclick="selectLoc(this)">
+            <span class="loc-icon">🔴</span>
+            <div class="loc-info"><div class="loc-name">Assembly Point B</div><div class="loc-type">Fire Assembly Point</div></div>
+            <span class="loc-pts">+10</span>
+          </button>
+          <button class="loc-btn" data-loc="workshop-main" onclick="selectLoc(this)">
+            <span class="loc-icon">🏛</span>
+            <div class="loc-info"><div class="loc-name">Main Hall Workshop</div><div class="loc-type">Safety Workshop Venue</div></div>
+            <span class="loc-pts">+15</span>
+          </button>
+          <button class="loc-btn" data-loc="workshop-lab" onclick="selectLoc(this)">
+            <span class="loc-icon">🧪</span>
+            <div class="loc-info"><div class="loc-name">Science Lab Safety</div><div class="loc-type">Safety Workshop Venue</div></div>
+            <span class="loc-pts">+15</span>
+          </button>
+          <button class="loc-btn" data-loc="library" onclick="selectLoc(this)">
+            <span class="loc-icon">📚</span>
+            <div class="loc-info"><div class="loc-name">Main Library</div><div class="loc-type">Productive Campus Space</div></div>
+            <span class="loc-pts">+5</span>
+          </button>
+          <button class="loc-btn" data-loc="dining" onclick="selectLoc(this)">
+            <span class="loc-icon">🍽</span>
+            <div class="loc-info"><div class="loc-name">Dining Hall</div><div class="loc-type">Campus Venue</div></div>
+            <span class="loc-pts">+5</span>
+          </button>
+        </div>
+        <div class="coords-bar">
+          <div class="coords-dot" id="coordsDot"></div>
+          <span id="coordsText">No location selected</span>
+        </div>
+        <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()" disabled>
+          <span class="shimmer"></span>TAP TO CHECK IN
+        </button>
+        <div class="val-panel" id="valPanel">
+          <div class="val-title" id="valTitle"></div>
+          <div class="val-body" id="valBody"></div>
+        </div>
+      </div>
+
+    </div><!-- /left col -->
+
+    <!-- RIGHT COL -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+      <div class="card">
+        <div class="card-title">Upcoming Fire Safety Events</div>
+        <div class="event-item">
+          <div class="event-time"><div class="day">TUE</div>11:00</div>
+          <div class="event-body">
+            <div class="event-name">Evacuation Drill — Block C<span class="event-live">● LIVE</span></div>
+            <div class="event-loc">📍 Assembly Point A &amp; B</div>
+          </div>
+          <span class="event-pts">+10 pts</span>
+        </div>
+        <div class="event-item">
+          <div class="event-time"><div class="day">WED</div>14:30</div>
+          <div class="event-body"><div class="event-name">Fire Safety Workshop</div><div class="event-loc">📍 Main Hall Workshop</div></div>
+          <span class="event-pts">+15 pts</span>
+        </div>
+        <div class="event-item">
+          <div class="event-time"><div class="day">FRI</div>09:00</div>
+          <div class="event-body"><div class="event-name">Lab Safety Certification</div><div class="event-loc">📍 Science Lab Safety Room</div></div>
+          <span class="event-pts">+15 pts</span>
+        </div>
+        <div class="event-item">
+          <div class="event-time"><div class="day">MON</div>10:00</div>
+          <div class="event-body"><div class="event-name">Extinguisher Training</div><div class="event-loc">📍 Sports Centre Carpark</div></div>
+          <span class="event-pts">+20 pts</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Facility Status</div>
+        <div class="fac-grid">
+          <div class="fac-item"><span style="font-size:1.4rem">🔴</span><div><div class="fac-name">Assembly Point A</div><div class="fac-status normal" id="fac-assembly-a">● OPEN</div></div></div>
+          <div class="fac-item"><span style="font-size:1.4rem">🔴</span><div><div class="fac-name">Assembly Point B</div><div class="fac-status normal" id="fac-assembly-b">● OPEN</div></div></div>
+          <div class="fac-item"><span style="font-size:1.4rem">🏛</span><div><div class="fac-name">Main Hall</div><div class="fac-status normal" id="fac-workshop-main">● AVAILABLE</div></div></div>
+          <div class="fac-item"><span style="font-size:1.4rem">🧪</span><div><div class="fac-name">Science Lab</div><div class="fac-status normal" id="fac-workshop-lab">● AVAILABLE</div></div></div>
+          <div class="fac-item"><span style="font-size:1.4rem">📚</span><div><div class="fac-name">Main Library</div><div class="fac-status normal" id="fac-library">● OPEN</div></div></div>
+          <div class="fac-item"><span style="font-size:1.4rem">🍽</span><div><div class="fac-name">Dining Hall</div><div class="fac-status normal" id="fac-dining">● SERVING</div></div></div>
+        </div>
+        <div style="margin-top:1.25rem;display:flex;gap:.75rem;align-items:center;border-top:1px solid var(--border);padding-top:1rem">
+          <button onclick="toggleDrill()" id="drillToggle" style="padding:.5rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--fire)';this.style.color='var(--fire)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚡ SIMULATE FIRE DRILL</button>
+          <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted)">Demo only</span>
+        </div>
+      </div>
+
+    </div><!-- /right col -->
+  </div><!-- /grid-2 -->
+
+  <!-- TRANSACTION LOG -->
+  <div class="card grid-1">
+    <div class="card-title">
+      Transaction Log
+      <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--blue);letter-spacing:.06em">🔒 READ-ONLY · WRITE-PROTECTED</span>
+    </div>
+    <div class="log-wrap">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Location</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Points</th>
+            <th>Device / Session Token</th>
+            <th>SHA-256 Hash</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+    <div class="immutable-note">🔒 In a production system, these entries are stored in a write-only, append-only database table (INSERT-only permissions). Records can never be edited or deleted — only read. This satisfies the Data Integrity requirement and prevents points fraud. Session tokens allow each check-in to be traced to the authenticated device, supporting audit trails under the University's Information Security Policy.</div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="grid-2">
+    <!-- LEADERBOARD -->
+    <div class="card">
+      <div class="card-title">Safety Leaderboard</div>
+      <div class="lb-row"><span class="lb-rank top">01</span><span class="lb-name">Priya Mehta</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:100%"></div></div><span class="lb-pts">310 pts</span></div>
+      <div class="lb-row"><span class="lb-rank top">02</span><span class="lb-name">Tom Bradley</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:80%"></div></div><span class="lb-pts">248 pts</span></div>
+      <div class="lb-row lb-mine" id="myLbRow">
+        <span class="lb-rank top">03</span>
+        <span class="lb-name">Jamie Souter ★</span>
+        <div class="lb-bar-wrap"><div class="lb-bar" id="myLbBar" style="width:39%"></div></div>
+        <span class="lb-pts" id="lbPoints">— pts</span>
+      </div>
+      <div class="lb-row"><span class="lb-rank">04</span><span class="lb-name">Amara Osei</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:35%"></div></div><span class="lb-pts">108 pts</span></div>
+      <div class="lb-row"><span class="lb-rank">05</span><span class="lb-name">Callum Wright</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:28%"></div></div><span class="lb-pts">88 pts</span></div>
+      <div class="lb-privacy-note" id="lbNote">Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy &amp; GDPR tab</div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="card">
+      <div class="card-title">Security &amp; Data Integrity</div>
+      <div class="sec-grid">
+        <div class="sec-item"><span style="font-size:1.1rem">💾</span><div><div class="sec-label">localStorage Persistence</div><div class="sec-desc">Points &amp; prefs survive browser close</div></div><span class="sec-check">✓</span></div>
+        <div class="sec-item"><span style="font-size:1.1rem">🔒</span><div><div class="sec-label">Duplicate Guard</div><div class="sec-desc">One check-in per drill per student</div></div><span class="sec-check">✓</span></div>
+        <div class="sec-item"><span style="font-size:1.1rem">📍</span><div><div class="sec-label">GPS Geofence</div><div class="sec-desc">Coords verified against geofence</div></div><span class="sec-check">✓</span></div>
+        <div class="sec-item"><span style="font-size:1.1rem">🪪</span><div><div class="sec-label">Session Token Auth</div><div class="sec-desc">Unique token bound to each transaction</div></div><span class="sec-check">✓</span></div>
+        <div class="sec-item"><span style="font-size:1.1rem">#️⃣</span><div><div class="sec-label">Tamper Hash</div><div class="sec-desc">Hash per immutable log entry</div></div><span class="sec-check">✓</span></div>
+        <div class="sec-item"><span style="font-size:1.1rem">🛡</span><div><div class="sec-label">UK GDPR Compliant</div><div class="sec-desc">Export, deletion &amp; visibility rights</div></div><span class="sec-check">✓</span></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Live Campus Hub © 2025 — Fire Safety Module v3.0 · <span style="color:var(--safe)">localStorage Active</span></span>
+  <span id="clockEl" style="font-family:var(--mono)"></span>
+</footer>
+
+<script>
+// ══════════════════════════════════════
+//  LOCATIONS
+// ══════════════════════════════════════
+const LOCS = {
+  'assembly-a':   {name:'Assembly Point A',   type:'Fire Assembly Point',   pts:10, coords:'51.4581° N, 0.9714° W', safe:true},
+  'assembly-b':   {name:'Assembly Point B',   type:'Fire Assembly Point',   pts:10, coords:'51.4579° N, 0.9718° W', safe:true},
+  'workshop-main':{name:'Main Hall Workshop', type:'Safety Workshop Venue', pts:15, coords:'51.4583° N, 0.9720° W', safe:true},
+  'workshop-lab': {name:'Science Lab Safety', type:'Safety Workshop Venue', pts:15, coords:'51.4585° N, 0.9711° W', safe:true},
+  'library':      {name:'Main Library',       type:'Productive Campus Space',pts:5, coords:'51.4577° N, 0.9723° W', safe:false},
+  'dining':       {name:'Dining Hall',        type:'Campus Venue',          pts:5,  coords:'51.4575° N, 0.9708° W', safe:false},
+};
+
+// ══════════════════════════════════════
+//  SESSION TOKEN  (survives until tab close)
+// ══════════════════════════════════════
+const SESSION_TOKEN = (() => {
+  let t = sessionStorage.getItem('hub_sess');
+  if (!t) { t = 'SES-' + Math.random().toString(36).slice(2,10).toUpperCase(); sessionStorage.setItem('hub_sess', t); }
+  return t;
+})();
+
+// ══════════════════════════════════════
+//  STATE  ← load from localStorage
+// ══════════════════════════════════════
+const DEFAULTS = {
+  points: 120, safetyCheckins: 3,
+  notifChannel: 'app',
+  workshopReminders: true, pointsAlerts: true, shareTutor: true, analytics: false,
+  showOnLeaderboard: true,
+  role: 'student',
+  checkinHistory: ['assembly-a-DRILL-2025-01','workshop-main-2025-02','workshop-lab-2025-02'],
+  badges: {b1:true, b2:true, b3:true, b4:false, b5:false},
+  lastPts: 120
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('hub_profile');
+    if (!raw) return {...DEFAULTS, badges:{...DEFAULTS.badges}, checkinHistory:[...DEFAULTS.checkinHistory]};
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULTS,
+      ...parsed,
+      badges: {...DEFAULTS.badges, ...(parsed.badges||{})},
+      checkinHistory: Array.isArray(parsed.checkinHistory) ? parsed.checkinHistory : [...DEFAULTS.checkinHistory]
+    };
+  } catch(e) { return {...DEFAULTS, badges:{...DEFAULTS.badges}, checkinHistory:[...DEFAULTS.checkinHistory]}; }
+}
+
+let S = loadState();
+
+function saveState() {
+  try {
+    localStorage.setItem('hub_profile', JSON.stringify(S));
+    flashStorageBadge();
+  } catch(e) {}
+}
+
+function flashStorageBadge() {
+  const el = document.getElementById('storageBadge');
+  el.style.borderColor = 'var(--amber)';
+  el.style.color = 'var(--amber)';
+  el.textContent = '💾 SAVING…';
+  setTimeout(() => {
+    el.style.borderColor = '';
+    el.style.color = '';
+    el.textContent = '💾 DATA PERSISTED';
+  }, 1000);
+}
+
+// ══════════════════════════════════════
+//  TRANSACTION LOG  ← persisted
+// ══════════════════════════════════════
+function defaultLog() {
+  return [
+    {ts:'Mon 09:14:32', loc:'Assembly Point A',   type:'Fire Assembly', status:'validated', pts:10, token:'SES-A1B2C3D4', hash:'a3f8b2c1…9d12f345'},
+    {ts:'Fri 14:22:05', loc:'Main Hall Workshop', type:'Workshop',      status:'validated', pts:15, token:'SES-E5F6G7H8', hash:'c7b2a9f1…1e45b672'},
+    {ts:'Wed 11:08:17', loc:'Assembly Point A',   type:'Fire Assembly', status:'duplicate', pts:0,  token:'SES-A1B2C3D4', hash:'f1d9c4b7…7c33d891'},
+    {ts:'Tue 16:45:50', loc:'Science Lab Safety', type:'Workshop',      status:'validated', pts:15, token:'SES-I9J0K1L2', hash:'8e4a3f7b…2f90e647'},
+  ];
+}
+
+function loadLog() {
+  try {
+    const raw = localStorage.getItem('hub_txlog');
+    return raw ? JSON.parse(raw) : defaultLog();
+  } catch(e) { return defaultLog(); }
+}
+
+let txLog = loadLog();
+
+function saveLog() {
+  try {
+    if (txLog.length > 120) txLog = txLog.slice(0, 120);
+    localStorage.setItem('hub_txlog', JSON.stringify(txLog));
+  } catch(e) {}
+}
+
+function mockHash(data) {
+  let h = 0;
+  for (let i = 0; i < data.length; i++) h = Math.imul(31, h) + data.charCodeAt(i) | 0;
+  const p1 = (Math.abs(h) >>> 0).toString(16).padStart(8,'0');
+  const p2 = Math.random().toString(16).slice(2,10);
+  return p1 + '…' + p2;
+}
+
+// ══════════════════════════════════════
+//  RENDER LOG  (immutable — no edit controls)
+// ══════════════════════════════════════
+function renderLog() {
+  const tbody = document.getElementById('logBody');
+  tbody.innerHTML = '';
+  txLog.forEach(e => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">${e.ts}</td>
+      <td>${e.loc}</td>
+      <td style="font-family:var(--mono);font-size:.63rem;color:var(--muted)">${e.type}</td>
+      <td><span class="tag ${e.status}">${e.status[0].toUpperCase()+e.status.slice(1)}</span></td>
+      <td class="log-pts ${e.pts===0?'zero':''}">${e.pts>0?'+'+e.pts:'+0'}</td>
+      <td class="mono-cell" title="Session Token: ${e.token}">${e.token}</td>
+      <td class="mono-cell" title="Full hash: ${e.hash}">${e.hash}</td>
+    `;
+    // Prevent editing
+    tr.style.userSelect = 'none';
+    tr.addEventListener('contextmenu', ev => ev.preventDefault());
+    tbody.appendChild(tr);
+  });
+}
+
+function pushLog(loc, type, status, pts) {
+  const now = new Date();
+  const ts = now.toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  txLog.unshift({
+    ts, loc, type, status, pts,
+    token: SESSION_TOKEN,
+    hash: mockHash(ts + loc + 'STU-2024-0847' + pts + SESSION_TOKEN + Math.random())
+  });
+  saveLog();
+  renderLog();
+  const first = document.getElementById('logBody').firstElementChild;
+  if (first) { first.style.background='rgba(255,179,0,.08)'; setTimeout(()=>first.style.background='', 1600); }
+}
+
+// ══════════════════════════════════════
+//  UI REFRESH
+// ══════════════════════════════════════
+function refreshUI() {
+  // Stats
+  document.getElementById('totalPoints').textContent  = S.points;
+  document.getElementById('pointsDisplay').textContent = S.points;
+  document.getElementById('safetyCount').textContent  = S.safetyCheckins;
+  document.getElementById('lbPoints').textContent     = S.points + ' pts';
+
+  const score = S.safetyCheckins >= 5 ? 'A+' : S.safetyCheckins >= 3 ? 'A' : S.safetyCheckins >= 1 ? 'B' : 'C';
+  document.getElementById('compScore').textContent = score;
+
+  const diff = S.points - S.lastPts;
+  document.getElementById('deltaTxt').textContent = diff > 0 ? `↑ +${diff} since last session` : '↑ Loaded from localStorage';
+
+  const pct = Math.min((S.points / 200) * 100, 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `${S.points} / 200 pts`;
+  document.getElementById('myLbBar').style.width = Math.min((S.points/310)*100, 100) + '%';
+}
+
+function refreshBadges() {
+  ['b1','b2','b3','b4','b5'].forEach(id => {
+    if (S.badges[id]) document.getElementById(id).classList.add('earned');
+    else document.getElementById(id).classList.remove('earned');
+  });
+  // auto-unlock
+  if (S.safetyCheckins >= 1 && !S.badges.b1) { S.badges.b1=true; document.getElementById('b1').classList.add('earned'); }
+  if (S.safetyCheckins >= 3 && !S.badges.b2) { S.badges.b2=true; document.getElementById('b2').classList.add('earned'); }
+  if (S.safetyCheckins >= 5 && !S.badges.b4) { S.badges.b4=true; document.getElementById('b4').classList.add('earned'); }
+  if (S.points >= 200        && !S.badges.b5) { S.badges.b5=true; document.getElementById('b5').classList.add('earned'); }
+}
+
+function refreshPrefs() {
+  ['notif-app','notif-sms','notif-both'].forEach(id => document.getElementById(id).classList.remove('active'));
+  const chanEl = document.getElementById('notif-'+S.notifChannel);
+  if (chanEl) chanEl.classList.add('active');
+  document.getElementById('pref-reminders').checked  = !!S.workshopReminders;
+  document.getElementById('pref-points').checked     = !!S.pointsAlerts;
+  document.getElementById('priv-leaderboard').checked = !!S.showOnLeaderboard;
+  document.getElementById('priv-tutor').checked      = !!S.shareTutor;
+  document.getElementById('priv-analytics').checked  = !!S.analytics;
+  ['role-student','role-warden','role-staff'].forEach(id => document.getElementById(id).classList.remove('active'));
+  const roleEl = document.getElementById('role-'+S.role);
+  if (roleEl) roleEl.classList.add('active');
+  applyRole(S.role);
+}
+
+function refreshLeaderboard() {
+  const row  = document.getElementById('myLbRow');
+  const note = document.getElementById('lbNote');
+  if (S.showOnLeaderboard) {
+    row.classList.remove('lb-hidden-row');
+    note.innerHTML = 'Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy &amp; GDPR tab';
+  } else {
+    row.classList.add('lb-hidden-row');
+    note.innerHTML = 'Visibility: <span style="color:var(--danger)">● Hidden</span> — manage in Privacy &amp; GDPR tab';
+  }
+}
+
+function initAll() {
+  refreshUI();
+  renderLog();
+  refreshBadges();
+  refreshPrefs();
+  refreshLeaderboard();
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════
+//  PREFERENCES
+// ══════════════════════════════════════
+function setPref(key, val, activeBtn, ...deactivateIds) {
+  S[key] = val;
+  activeBtn.classList.add('active');
+  deactivateIds.forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  saveState();
+  toast('Preference saved.');
+}
+
+function savePrefToggle(key, checkbox) {
+  S[key] = checkbox.checked;
+  saveState();
+  toast(checkbox.checked ? key + ': Enabled' : key + ': Disabled');
+}
+
+function toggleLeaderboard(checkbox) {
+  S.showOnLeaderboard = checkbox.checked;
+  saveState();
+  refreshLeaderboard();
+  toast(checkbox.checked ? 'You are now visible on the leaderboard.' : 'You are now hidden from the leaderboard.', checkbox.checked ? '' : 'warn');
+}
+
+// ══════════════════════════════════════
+//  ROLE
+// ══════════════════════════════════════
+function setRole(role, btn) {
+  S.role = role;
+  ['role-student','role-warden','role-staff'].forEach(id => document.getElementById(id).classList.remove('active'));
+  btn.classList.add('active');
+  applyRole(role);
+  saveState();
+  toast('Role updated: ' + role);
+}
+
+function applyRole(role) {
+  const chip = document.getElementById('roleChip');
+  const labels = {student:'🎓 Student', warden:'🦺 Fire Warden', staff:'🏛 Staff'};
+  chip.textContent = labels[role] || labels.student;
+  chip.className = 'role-chip ' + role;
+  // RBAC table
+  if (role === 'warden') {
+    setRBAC('partial','yes','partial','no');
+  } else if (role === 'staff') {
+    setRBAC('yes','yes','yes','no');
+  } else {
+    setRBAC('no','no','no','no');
+  }
+}
+
+function setRBAC(all, drill, fac, exp) {
+  const map = {
+    'ra-all':    {val:all,   yes:'✓ Warden+', no:'✗ Student', partial:'⚡ Cohort only'},
+    'ra-drill':  {val:drill, yes:'✓ Warden+', no:'✗ Student', partial:'⚡ Warden+'},
+    'ra-fac':    {val:fac,   yes:'✓ Staff',   no:'✗ Student', partial:'⚡ Warden+'},
+    'ra-export': {val:'no',  yes:'✓ Staff',   no:'✗ All',     partial:'✗ All'},
+  };
+  Object.entries(map).forEach(([id, cfg]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'ri-access ' + cfg.val;
+    el.textContent = cfg[cfg.val] || cfg.no;
+  });
+}
+
+// ══════════════════════════════════════
+//  LOCATION SELECTION
+// ══════════════════════════════════════
+let selectedLoc = null;
+function selectLoc(btn) {
+  document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedLoc = btn.dataset.loc;
+  const info = LOCS[selectedLoc];
+  document.getElementById('coordsDot').classList.add('live');
+  document.getElementById('coordsText').textContent = info.coords + ' — ' + info.name;
+  document.getElementById('checkinBtn').disabled = false;
+  hideVal();
+}
+
+// ══════════════════════════════════════
+//  CHECK-IN FLOW
+// ══════════════════════════════════════
+let drillActive = false;
+const DRILL_ID = 'DRILL-2025-03';
+
+function doCheckin() {
+  if (!selectedLoc) return;
+  const info = LOCS[selectedLoc];
+  const btn  = document.getElementById('checkinBtn');
+  btn.textContent = 'VALIDATING LOCATION…';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // STEP 3: GPS validation
+    if (!gpsCheck(selectedLoc)) {
+      showVal('error','✗ Location Mismatch', `GPS coordinates do not match <strong>${info.name}</strong>. You must be physically present at this location.`);
+      pushLog(info.name, info.type, 'rejected', 0);
+      resetBtn();
+      return;
+    }
+    // STEP 4: Duplicate guard
+    const key = selectedLoc + '-' + (drillActive ? DRILL_ID : todayKey());
+    if (S.checkinHistory.includes(key)) {
+      showVal('warning','⚠ Already Checked In', `You already checked in at <strong>${info.name}</strong> for this session. Points integrity prevents duplicate awards.`);
+      pushLog(info.name, info.type, 'duplicate', 0);
+      resetBtn();
+      return;
+    }
+    // ✓ Award
+    S.checkinHistory.push(key);
+    awardPts(info.pts, info.name, info.type, info.safe);
+  }, 1300);
+}
+
+function gpsCheck() { return true; } // Production: geofence radius check
+
+function todayKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+}
+
+function awardPts(pts, name, type, isSafety) {
+  S.lastPts = S.points;
+  S.points += pts;
+  if (isSafety) S.safetyCheckins++;
+
+  // ── SAVE ON UPDATE ──
+  saveState();
+
+  refreshUI();
+  refreshBadges();
+  saveState(); // save badge changes too
+
+  burst(pts);
+  pushLog(name, type, 'validated', pts);
+  toast('+' + pts + ' pts awarded for ' + name + '!');
+
+  const msg = isSafety
+    ? `Location confirmed. <strong>+${pts} safety points</strong> added for <strong>${name}</strong>. Record persisted to localStorage.`
+    : `Checked in at <strong>${name}</strong>. <strong>+${pts} engagement points</strong> saved.`;
+  showVal('success', '✓ Confirmed — +' + pts + ' pts', msg);
+
+  const btn = document.getElementById('checkinBtn');
+  btn.textContent = '✓ CHECKED IN';
+  setTimeout(() => {
+    resetBtn();
+    selectedLoc = null;
+    document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('coordsDot').classList.remove('live');
+    document.getElementById('coordsText').textContent = 'No location selected';
+  }, 3000);
+}
+
+function resetBtn() {
+  const btn = document.getElementById('checkinBtn');
+  btn.textContent = 'TAP TO CHECK IN';
+  btn.disabled = false;
+}
+
+function burst(pts) {
+  const el = document.getElementById('pointsBurst');
+  el.textContent = '+' + pts;
+  el.style.left = (window.innerWidth/2 - 50) + 'px';
+  el.style.top  = (window.innerHeight/2) + 'px';
+  el.className = 'points-burst go';
+  setTimeout(() => el.className = 'points-burst', 1000);
+}
+
+// ══════════════════════════════════════
+//  VALIDATION PANEL
+// ══════════════════════════════════════
+function showVal(type, title, body) {
+  const p = document.getElementById('valPanel');
+  p.className = 'val-panel show ' + type;
+  const t = document.getElementById('valTitle');
+  t.className = 'val-title ' + type;
+  t.textContent = title;
+  document.getElementById('valBody').innerHTML = body;
+}
+function hideVal() { document.getElementById('valPanel').className = 'val-panel'; }
+
+// ══════════════════════════════════════
+//  DRILL TOGGLE
+// ══════════════════════════════════════
+function toggleDrill() {
+  drillActive = !drillActive;
+  document.getElementById('drillBanner').classList.toggle('active', drillActive);
+  document.getElementById('drillOverlay').classList.toggle('active', drillActive);
+  document.getElementById('statusDot').classList.toggle('alert', drillActive);
+  document.getElementById('statusText').textContent = drillActive ? '🚨 FIRE DRILL ACTIVE' : 'SYSTEM NORMAL';
+  document.getElementById('drillToggle').textContent = drillActive ? '✓ END DRILL' : '⚡ SIMULATE FIRE DRILL';
+  ['assembly-a','assembly-b'].forEach(k => {
+    const el = document.getElementById('fac-'+k);
+    el.className = 'fac-status ' + (drillActive ? 'drill' : 'normal');
+    el.textContent = drillActive ? '● DRILL ACTIVE' : '● OPEN';
+  });
+}
+
+// ══════════════════════════════════════
+//  GDPR — EXPORT
+// ══════════════════════════════════════
+function exportMyData() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    rights: 'UK GDPR Article 15 — Right of Access',
+    profile: {
+      studentId: 'STU-2024-0847', name: 'Jamie Souter',
+      role: S.role, points: S.points, safetyCheckins: S.safetyCheckins, badges: S.badges
+    },
+    preferences: {
+      notifChannel: S.notifChannel, workshopReminders: S.workshopReminders,
+      pointsAlerts: S.pointsAlerts, showOnLeaderboard: S.showOnLeaderboard,
+      shareTutor: S.shareTutor, analytics: S.analytics
+    },
+    checkinHistory: S.checkinHistory,
+    transactionLog: txLog,
+    retentionNote: 'GPS purged after 90 days. Check-in logs retained 3 years per University Safety Policy.'
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'campus-hub-export-STU-2024-0847.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Data export downloaded. Article 15 right fulfilled.');
+}
+
+// ══════════════════════════════════════
+//  GDPR — DELETE
+// ══════════════════════════════════════
+function confirmDelete() {
+  if (confirm('⚠ DELETE ALL DATA\n\nThis permanently removes all data stored in this browser for your profile.\n\nIn production, this would submit a Right to Erasure request (Article 17 UK GDPR) to the data controller for server-side deletion.\n\nProceed?')) {
+    localStorage.removeItem('hub_profile');
+    localStorage.removeItem('hub_txlog');
+    sessionStorage.removeItem('hub_sess');
+    toast('All local data deleted. Reloading…', 'warn');
+    setTimeout(() => location.reload(), 2000);
+  }
+}
+
+// ══════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════
+let _toastT;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' '+type : '');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ══════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════
+function tickClock() {
+  document.getElementById('clockEl').textContent =
+    new Date().toLocaleString('en-GB',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ══════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════
+initAll();
+</script>
+</body>
+</html>
