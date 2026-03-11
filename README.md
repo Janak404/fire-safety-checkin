@@ -2,10 +2,6 @@
 
 An interactive MVP for a campus fire‑safety management system featuring immutable audit logging, gamified user engagement, and UK GDPR‑compliant data tools.
 
-> **Note:** This repository is a **university assignment** and is kept **private** to maintain academic integrity and prevent plagiarism.
-
----
-
 ## ✨ Features
 
 ### 🔥 Fire Safety & Engagement Tools
