@@ -56,9 +56,3 @@ To test the application during assessment:
 6. Attempt duplicate check‑ins to verify fraud‑prevention logic.
 
 ---
-
-## 🚀 Quick Start
-
-1. Clone or download the repo:
-   ```bash
-   git clone <your-private-repo-url>
