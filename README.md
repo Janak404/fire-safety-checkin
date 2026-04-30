@@ -2,6 +2,8 @@
 
 An interactive MVP for a campus fire‑safety management system featuring immutable audit logging, gamified user engagement, and UK GDPR‑compliant data tools.
 
+Live Demo, "https://janak404.github.io/fire-safety-checkin/"
+
 ## ✨ Features
 
 ### 🔥 Fire Safety & Engagement Tools
