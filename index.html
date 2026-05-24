@@ -5,16 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fire Safety Check-in — Live Campus Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --black:#0a0a0a;--dark:#111111;--panel:#161616;--border:#2a2a2a;
-    --fire:#ff4d00;--amber:#ffb300;--safe:#00e676;--danger:#ff1744;--blue:#2979ff;
-    --text:#f0ece4;--muted:#777;
+    --fire:#ff4d00;--amber:#ffb300;--safe:#00e676;--danger:#ff1744;--blue:#2979ff;--purple:#7c4dff;
+    --text:#f0ece4;--muted:#777;--text-high:#ffffff;
     --mono:'JetBrains Mono',monospace;--display:'Syne',sans-serif;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--black);color:var(--text);font-family:var(--display);min-height:100vh;overflow-x:hidden}
   body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
+
+  /* ACCESSIBILITY: Focus styles */
+  *:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:2px}
+  .skip-link{position:absolute;top:-40px;left:0;background:var(--amber);color:#000;padding:.5rem 1rem;font-family:var(--mono);font-size:.75rem;font-weight:700;z-index:1000;transition:top .3s}
+  .skip-link:focus{top:0}
 
   header{position:sticky;top:0;z-index:100;background:var(--black);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px}
   .logo{display:flex;align-items:center;gap:.75rem;font-size:.9rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -29,6 +35,7 @@
   @keyframes pdot{0%,100%{opacity:1}50%{opacity:.5}}
   @keyframes pfire{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.3)}}
   .storage-badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.08em;padding:.2rem .55rem;border:1px solid var(--safe);color:var(--safe);text-transform:uppercase;transition:all .3s}
+  .role-indicator{font-family:var(--mono);font-size:.6rem;padding:.2rem .55rem;border:1px solid var(--purple);color:var(--purple);text-transform:uppercase;letter-spacing:.08em}
 
   .drill-banner{background:linear-gradient(90deg,var(--fire),#ff8a00,var(--fire));background-size:200% 100%;color:#000;font-family:var(--mono);font-size:.78rem;font-weight:700;padding:.55rem 2rem;text-align:center;letter-spacing:.1em;text-transform:uppercase;display:none;align-items:center;justify-content:center;gap:1rem;animation:sbg 3s linear infinite}
   .drill-banner.active{display:flex}
@@ -57,6 +64,7 @@
   .tab-bar{display:flex;border-bottom:1px solid var(--border);margin-bottom:1.5rem}
   .tab-btn{padding:.55rem 1rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;margin-bottom:-1px}
   .tab-btn:hover{color:var(--text)}
+  .tab-btn:focus-visible{color:var(--fire);border-bottom-color:var(--fire)}
   .tab-btn.active{color:var(--fire);border-bottom-color:var(--fire)}
   .tab-panel{display:none}.tab-panel.active{display:block}
 
@@ -70,6 +78,7 @@
   .role-chip.student{border-color:var(--blue);color:var(--blue);background:rgba(41,121,255,.1)}
   .role-chip.warden{border-color:var(--amber);color:var(--amber);background:rgba(255,179,0,.1)}
   .role-chip.staff{border-color:var(--safe);color:var(--safe);background:rgba(0,230,118,.1)}
+  .role-chip.admin{border-color:var(--purple);color:var(--purple);background:rgba(124,77,255,.1)}
   .points-display{display:flex;align-items:baseline;gap:.4rem;margin-bottom:1rem}
   .points-num{font-size:3rem;font-weight:800;color:var(--amber);line-height:1;transition:all .3s}
   .points-label{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
@@ -138,6 +147,7 @@
   .loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:1.25rem}
   .loc-btn{padding:.85rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-family:var(--display);font-size:.8rem;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:.6rem}
   .loc-btn:hover{border-color:var(--amber);color:var(--text)}
+  .loc-btn:focus-visible{border-color:var(--amber);color:var(--text);outline-offset:4px}
   .loc-btn.selected{border-color:var(--fire);color:var(--text);background:rgba(255,77,0,.1)}
   .loc-icon{font-size:1.1rem}
   .loc-info{flex:1}
@@ -150,6 +160,7 @@
   .coords-dot.live{background:var(--safe);box-shadow:0 0 6px var(--safe);animation:pdot 2s infinite}
   .checkin-btn{width:100%;padding:1.1rem 2rem;background:var(--fire);border:none;color:#000;font-family:var(--display);font-size:1rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;position:relative;overflow:hidden;transition:all .2s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
   .checkin-btn:hover{background:#ff6b35;transform:translateY(-1px)}
+  .checkin-btn:focus-visible{outline:2px solid var(--amber);outline-offset:4px}
   .checkin-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;transform:none;clip-path:none}
   .shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transform:translateX(-100%)}
   .checkin-btn:hover .shimmer{animation:shim .6s ease forwards}
@@ -230,390 +241,716 @@
   .toast.warn{border-left-color:var(--amber)}
   .toast.err{border-left-color:var(--danger)}
 
+  /* ════════════════════════════════════════
+     ADMIN DASHBOARD STYLES
+     ════════════════════════════════════════ */
+  .admin-panel{display:none}
+  .admin-panel.active{display:block}
+  .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+  .admin-stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem}
+  .admin-stat-cell{background:var(--panel);padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.3rem}
+  .admin-stat-cell .label{font-family:var(--mono);font-size:.6rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+  .admin-stat-cell .value{font-size:1.8rem;font-weight:800;line-height:1}
+  .admin-stat-cell .value.fire{color:var(--fire)}.admin-stat-cell .value.amber{color:var(--amber)}.admin-stat-cell .value.safe{color:var(--safe)}.admin-stat-cell .value.danger{color:var(--danger)}
+  .admin-table{width:100%;border-collapse:collapse}
+  .admin-table th{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+  .admin-table td{padding:.55rem .75rem;border-bottom:1px solid rgba(42,42,42,.5);font-size:.78rem;vertical-align:middle}
+  .admin-table tr:last-child td{border-bottom:none}
+  .admin-table tr:hover td{background:rgba(255,255,255,.02)}
+  .admin-table .status-badge{display:inline-block;padding:.15rem .4rem;font-family:var(--mono);font-size:.55rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:2px}
+  .status-badge.present{background:rgba(0,230,118,.15);color:var(--safe);border:1px solid rgba(0,230,118,.3)}
+  .status-badge.missing{background:rgba(255,23,68,.15);color:var(--danger);border:1px solid rgba(255,23,68,.3)}
+  .status-badge.partial{background:rgba(255,179,0,.15);color:var(--amber);border:1px solid rgba(255,179,0,.3)}
+  .admin-section-title{font-family:var(--mono);font-size:.7rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+  .missing-row{background:rgba(255,23,68,.04)}
+  .missing-row td{border-bottom-color:rgba(255,23,68,.2)!important}
+
+  /* ════════════════════════════════════════
+     PASSWORD PROTECTION MODAL
+     ════════════════════════════════════════ */
+  .modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .modal-overlay.active{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--border);padding:2rem;max-width:420px;width:90%;position:relative}
+  .modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--fire),transparent)}
+  .modal-title{font-size:1.1rem;font-weight:800;margin-bottom:.5rem}
+  .modal-desc{font-family:var(--mono);font-size:.65rem;color:var(--muted);line-height:1.6;margin-bottom:1.5rem}
+  .pw-input{width:100%;padding:.75rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.85rem;margin-bottom:1rem;transition:border-color .2s}
+  .pw-input:focus{outline:none;border-color:var(--fire)}
+  .pw-input::placeholder{color:var(--muted)}
+  .modal-actions{display:flex;gap:.75rem;justify-content:flex-end}
+  .modal-btn{padding:.5rem 1rem;border:1px solid;font-family:var(--mono);font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;background:none;transition:all .2s}
+  .modal-btn.primary{border-color:var(--fire);color:var(--fire)}
+  .modal-btn.primary:hover{background:rgba(255,77,0,.1)}
+  .modal-btn.secondary{border-color:var(--border);color:var(--muted)}
+  .modal-btn.secondary:hover{border-color:var(--muted);color:var(--text)}
+  .pw-error{font-family:var(--mono);font-size:.65rem;color:var(--danger);margin-top:-.5rem;margin-bottom:.75rem;display:none}
+  .pw-error.show{display:block}
+
+  /* ════════════════════════════════════════
+     ANALYTICS CHARTS
+     ════════════════════════════════════════ */
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+  .chart-card{background:var(--panel);border:1px solid var(--border);padding:1.5rem}
+  .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+  .chart-title{font-family:var(--mono);font-size:.65rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+  .chart-canvas{position:relative;height:220px;width:100%}
+  .chart-legend{display:flex;gap:1rem;margin-top:.75rem;font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+  .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:.3rem}
+  .analytics-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem}
+  .analytics-cell{background:var(--panel);padding:1rem;display:flex;flex-direction:column;gap:.2rem}
+  .analytics-cell .label{font-family:var(--mono);font-size:.55rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  .analytics-cell .value{font-size:1.4rem;font-weight:800}
+
+  /* ACCESSIBILITY: High contrast mode support */
+  @media (prefers-contrast: more) {
+    :root{--text:#ffffff;--muted:#aaaaaa;--border:#555555}
+    .card{border-width:2px}
+    .loc-btn{border-width:2px}
+    .checkin-btn{clip-path:none;border:2px solid #000}
+  }
+
+  /* ACCESSIBILITY: Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    .points-burst{display:none}
+  }
+
   footer{border-top:1px solid var(--border);padding:1.25rem 2rem;font-family:var(--mono);font-size:.65rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
   .drill-overlay{position:fixed;inset:0;z-index:200;background:rgba(255,23,68,.08);pointer-events:none;border:3px solid var(--danger);animation:dpulse 1.5s ease-in-out infinite;display:none}
   .drill-overlay.active{display:block}
   @keyframes dpulse{0%,100%{box-shadow:inset 0 0 60px rgba(255,23,68,.15)}50%{box-shadow:inset 0 0 120px rgba(255,23,68,.3)}}
   ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--black)}::-webkit-scrollbar-thumb{background:var(--border)}
-  @media(max-width:768px){.grid-3,.grid-2,.loc-grid,.fac-grid,.sec-grid,.drb-grid{grid-template-columns:1fr}.page-title{font-size:2rem}}
+  @media(max-width:768px){
+    .grid-3,.grid-2,.loc-grid,.fac-grid,.sec-grid,.drb-grid,.admin-grid,.chart-grid,.admin-stat-grid,.analytics-summary{grid-template-columns:1fr}
+    .page-title{font-size:2rem}
+    .admin-stat-grid{grid-template-columns:1fr 1fr}
+    .analytics-summary{grid-template-columns:1fr 1fr}
+  }
 </style>
 </head>
 <body>
 
-<div class="drill-overlay" id="drillOverlay"></div>
-<div class="points-burst" id="pointsBurst"></div>
-<div class="toast" id="toast"></div>
+<!-- ACCESSIBILITY: Skip link -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
 
-<header>
-  <div class="logo">
-    <span class="logo-flame">🔥</span>
+<div class="drill-overlay" id="drillOverlay" role="presentation" aria-hidden="true"></div>
+<div class="points-burst" id="pointsBurst" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<!-- PASSWORD PROTECTION MODAL -->
+<div class="modal-overlay" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle" aria-describedby="pwModalDesc">
+  <div class="modal-box">
+    <div class="modal-title" id="pwModalTitle">🔒 Authentication Required</div>
+    <div class="modal-desc" id="pwModalDesc">This action is password-protected. Enter your admin PIN to continue. Default: <strong>1234</strong></div>
+    <input type="password" class="pw-input" id="pwInput" placeholder="Enter PIN (4 digits)" aria-label="Enter 4-digit PIN" maxlength="4" inputmode="numeric" autocomplete="off">
+    <div class="pw-error" id="pwError" role="alert">Incorrect PIN. Access denied.</div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closePwModal()" type="button">Cancel</button>
+      <button class="modal-btn primary" onclick="verifyPassword()" type="button">Authenticate</button>
+    </div>
+  </div>
+</div>
+
+<header role="banner">
+  <div class="logo" aria-label="Live Campus Hub Fire Safety Module">
+    <span class="logo-flame" aria-hidden="true">🔥</span>
     <span>Live Campus Hub</span>
-    <div class="logo-sep"></div>
+    <div class="logo-sep" aria-hidden="true"></div>
     <span class="logo-sub">Fire Safety Module</span>
   </div>
   <div class="header-right">
+    <span class="role-indicator" id="roleIndicator" aria-label="Current role">STUDENT</span>
     <span class="storage-badge" id="storageBadge">💾 DATA PERSISTED</span>
-    <div class="header-status">
-      <div class="status-dot" id="statusDot"></div>
+    <div class="header-status" aria-live="polite">
+      <div class="status-dot" id="statusDot" aria-hidden="true"></div>
       <span id="statusText">SYSTEM NORMAL</span>
     </div>
   </div>
 </header>
 
-<div class="drill-banner" id="drillBanner">
+<div class="drill-banner" id="drillBanner" role="alert" aria-live="assertive">
   🚨 &nbsp; FIRE DRILL ACTIVE — PROCEED TO NEAREST ASSEMBLY POINT &nbsp; 🚨 &nbsp;|&nbsp; CHECK IN NOW TO EARN POINTS
 </div>
 
-<main>
+<main id="main-content" role="main">
   <p class="page-subtitle">Check-in & Rewards System</p>
   <h1 class="page-title">Fire Safety<br><span>Check-in</span></h1>
 
-  <div class="grid-3">
-    <div class="stat-cell">
-      <span class="label">Your Points</span>
-      <span class="value amber" id="totalPoints">—</span>
-      <span class="delta" id="deltaTxt">Loading from storage…</span>
+  <!-- ════════════════════════════════════════
+       STUDENT VIEW (Default)
+       ════════════════════════════════════════ -->
+  <div id="studentView">
+    <div class="grid-3">
+      <div class="stat-cell">
+        <span class="label">Your Points</span>
+        <span class="value amber" id="totalPoints">—</span>
+        <span class="delta" id="deltaTxt">Loading from storage…</span>
+      </div>
+      <div class="stat-cell">
+        <span class="label">Safety Check-ins</span>
+        <span class="value fire" id="safetyCount">—</span>
+        <span class="delta">This semester</span>
+      </div>
+      <div class="stat-cell">
+        <span class="label">Compliance Score</span>
+        <span class="value safe" id="compScore">—</span>
+        <span class="delta">Based on attendance</span>
+      </div>
     </div>
-    <div class="stat-cell">
-      <span class="label">Safety Check-ins</span>
-      <span class="value fire" id="safetyCount">—</span>
-      <span class="delta">This semester</span>
-    </div>
-    <div class="stat-cell">
-      <span class="label">Compliance Score</span>
-      <span class="value safe" id="compScore">—</span>
-      <span class="delta">Based on attendance</span>
-    </div>
-  </div>
 
-  <div class="grid-2">
-    <!-- LEFT -->
-    <div style="display:flex;flex-direction:column;gap:1.5rem">
+    <div class="grid-2">
+      <!-- LEFT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:1.5rem">
 
-      <!-- PROFILE CARD (3 tabs) -->
+        <!-- PROFILE CARD (3 tabs) -->
+        <div class="card">
+          <div class="tab-bar" role="tablist" aria-label="Profile sections">
+            <button class="tab-btn active" onclick="switchTab('profile',this)" role="tab" aria-selected="true" aria-controls="tab-profile" id="tab-btn-profile">Profile</button>
+            <button class="tab-btn" onclick="switchTab('prefs',this)" role="tab" aria-selected="false" aria-controls="tab-prefs" id="tab-btn-prefs">Preferences</button>
+            <button class="tab-btn" onclick="switchTab('privacy',this)" role="tab" aria-selected="false" aria-controls="tab-privacy" id="tab-btn-privacy">Privacy & GDPR</button>
+          </div>
+
+          <!-- TAB: PROFILE -->
+          <div class="tab-panel active" id="tab-profile" role="tabpanel" aria-labelledby="tab-btn-profile">
+            <div class="profile-header">
+              <div class="avatar" aria-label="User avatar initials JS">JS</div>
+              <div>
+                <div class="profile-name" id="profileName">Jamie Souter</div>
+                <div class="profile-id" id="profileId">ID: STU-2024-0847</div>
+                <div class="role-chip student" id="roleChip" aria-label="Role: Student">🎓 Student</div>
+              </div>
+            </div>
+            <div class="points-display">
+              <span class="points-num" id="pointsDisplay">—</span>
+              <span class="points-label">pts total</span>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span id="levelLabel">LEVEL 3 — FIRE WARDEN</span>
+                <span id="progressLabel">— / 200 pts</span>
+              </div>
+              <div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="200" aria-label="Points progress">
+                <div class="progress-bar" id="progressBar" style="width:0%"></div>
+                <div class="progress-marker" style="left:50%" aria-hidden="true"></div>
+                <div class="progress-marker" style="left:100%" aria-hidden="true"></div>
+              </div>
+            </div>
+            <div class="badge-row" role="list" aria-label="Earned badges">
+              <span class="badge" id="b1" role="listitem">🏅 First Drill</span>
+              <span class="badge" id="b2" role="listitem">🔥 Triple Check-in</span>
+              <span class="badge" id="b3" role="listitem">⚡ Fast Response</span>
+              <span class="badge" id="b4" role="listitem">🛡 Safety Champion</span>
+              <span class="badge" id="b5" role="listitem">🚒 Expert Warden</span>
+            </div>
+          </div>
+
+          <!-- TAB: PREFERENCES -->
+          <div class="tab-panel" id="tab-prefs" role="tabpanel" aria-labelledby="tab-btn-prefs">
+            <div class="pref-section">
+              <div class="pref-title">Safety Notification Channel</div>
+              <div class="pref-row">
+                <div><div class="pref-label">Drill Alerts</div><div class="pref-desc">How you receive live fire drill notifications</div></div>
+                <div class="tog-wrap" role="group" aria-label="Notification channel">
+                  <button class="tog-opt active" id="notif-app" onclick="setPref('notifChannel','app',this,'notif-sms','notif-both')" aria-pressed="true">App Push</button>
+                  <button class="tog-opt" id="notif-sms" onclick="setPref('notifChannel','sms',this,'notif-app','notif-both')" aria-pressed="false">SMS</button>
+                  <button class="tog-opt" id="notif-both" onclick="setPref('notifChannel','both',this,'notif-app','notif-sms')" aria-pressed="false">Both</button>
+                </div>
+              </div>
+              <div class="pref-row">
+                <div><div class="pref-label">Workshop Reminders</div><div class="pref-desc">24-hour reminder before safety workshops</div></div>
+                <label class="switch"><input type="checkbox" id="pref-reminders" onchange="savePrefToggle('workshopReminders',this)" aria-label="Enable workshop reminders"><span class="slider"></span></label>
+              </div>
+              <div class="pref-row">
+                <div><div class="pref-label">Points Earned Alerts</div><div class="pref-desc">Notify when points are credited to profile</div></div>
+                <label class="switch"><input type="checkbox" id="pref-points" onchange="savePrefToggle('pointsAlerts',this)" aria-label="Enable points alerts"><span class="slider"></span></label>
+              </div>
+              <div class="pref-row">
+                <div><div class="pref-label">Emergency Broadcasts</div><div class="pref-desc">Always on — required for safety compliance</div></div>
+                <label class="switch"><input type="checkbox" disabled checked aria-label="Emergency broadcasts always enabled" aria-disabled="true"><span class="slider" style="opacity:.45;cursor:not-allowed"></span></label>
+              </div>
+            </div>
+
+            <div class="pref-section">
+              <div class="pref-title">User Role & Access Level</div>
+              <div class="tog-wrap" style="margin-bottom:.75rem;flex-wrap:wrap" role="group" aria-label="Select user role">
+                <button class="tog-opt active" id="role-student" onclick="setRole('student',this)" aria-pressed="true">🎓 Student</button>
+                <button class="tog-opt" id="role-warden" onclick="setRole('warden',this)" aria-pressed="false">🦺 Fire Warden</button>
+                <button class="tog-opt" id="role-staff" onclick="setRole('staff',this)" aria-pressed="false">🏛 Staff</button>
+                <button class="tog-opt" id="role-admin" onclick="setRole('admin',this)" aria-pressed="false">🔐 Admin</button>
+              </div>
+              <div class="role-info-box">
+                <div class="ri-title">Role-Based Access Control (RBAC)</div>
+                <div class="ri-row"><span>View own check-in log</span><span class="ri-access yes">✓ All roles</span></div>
+                <div class="ri-row"><span>View all student logs</span><span class="ri-access no" id="ra-all">✗ Student</span></div>
+                <div class="ri-row"><span>Trigger drill simulation</span><span class="ri-access no" id="ra-drill">✗ Student</span></div>
+                <div class="ri-row"><span>Edit facility status</span><span class="ri-access no" id="ra-fac">✗ Student</span></div>
+                <div class="ri-row"><span>Export all student data</span><span class="ri-access no" id="ra-export">✗ Student</span></div>
+                <div class="ri-row"><span>Admin dashboard access</span><span class="ri-access no" id="ra-admin">✗ Student</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: PRIVACY & GDPR -->
+          <div class="tab-panel" id="tab-privacy" role="tabpanel" aria-labelledby="tab-btn-privacy">
+            <div class="privacy-header">
+              <span class="ph-icon" aria-hidden="true">🛡</span>
+              <div>
+                <div class="ph-title">Your Data Rights (UK GDPR)</div>
+                <div class="ph-desc">Live Campus Hub processes your location and engagement data to award points and ensure fire safety compliance. You have the right to access, export, and erase your data at any time under the UK GDPR 2018.</div>
+              </div>
+            </div>
+
+            <div class="priv-section">
+              <div class="priv-section-title">Visibility Controls</div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Appear on Safety Leaderboard</div>
+                  <div class="pr-desc">If disabled, your name and score are hidden from other students. Your points still count internally toward compliance scoring.</div>
+                </div>
+                <label class="switch"><input type="checkbox" id="priv-leaderboard" onchange="toggleLeaderboard(this)" aria-label="Toggle leaderboard visibility"><span class="slider"></span></label>
+              </div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Share Attendance with Personal Tutor</div>
+                  <div class="pr-desc">Allows your personal tutor to view fire drill attendance for welfare and pastoral purposes only.</div>
+                </div>
+                <label class="switch"><input type="checkbox" id="priv-tutor" onchange="savePrefToggle('shareTutor',this)" aria-label="Share with tutor"><span class="slider"></span></label>
+              </div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Location History Retention</div>
+                  <div class="pr-desc">GPS coordinates stored for check-in validation. Automatically purged after 90 days per retention policy.</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
+                  <span class="consent-tag granted">✓ Consented</span>
+                  <span style="font-family:var(--mono);font-size:.57rem;color:var(--muted)">Required for check-in</span>
+                </div>
+              </div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Analytics & Product Improvement</div>
+                  <div class="pr-desc">Anonymised usage data shared with campus IS team to improve the Hub experience.</div>
+                </div>
+                <label class="switch"><input type="checkbox" id="priv-analytics" onchange="savePrefToggle('analytics',this)" aria-label="Allow analytics"><span class="slider"></span></label>
+              </div>
+            </div>
+
+            <div class="priv-section">
+              <div class="priv-section-title">Data Retention Summary</div>
+              <div class="drb-grid">
+                <div class="drb-cell"><div class="drb-label">Check-in Logs</div><div class="drb-val" style="color:var(--amber)">3 Years</div></div>
+                <div class="drb-cell"><div class="drb-label">GPS Coordinates</div><div class="drb-val" style="color:var(--fire)">90 Days</div></div>
+                <div class="drb-cell"><div class="drb-label">Points Balance</div><div class="drb-val" style="color:var(--safe)">Persistent</div></div>
+              </div>
+            </div>
+
+            <div class="priv-section">
+              <div class="priv-section-title">Your Rights</div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Download My Data</div>
+                  <div class="pr-desc">Export all profile, check-in history, and points data as JSON. (Article 15 UK GDPR — Right of Access)</div>
+                </div>
+                <button class="gdpr-btn primary" onclick="requestExport()" aria-label="Export my data">⬇ Export</button>
+              </div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Request Data Correction</div>
+                  <div class="pr-desc">Flag incorrect check-in records for review by a campus data officer. (Article 16 — Right to Rectification)</div>
+                </div>
+                <button class="gdpr-btn muted-btn" onclick="toast('Request submitted. A data officer will respond within 30 days.','warn')" aria-label="Request data correction">✏ Request</button>
+              </div>
+              <div class="priv-row">
+                <div class="pr-info">
+                  <div class="pr-label">Delete My Account & Data</div>
+                  <div class="pr-desc">Permanently removes your profile and all stored browser data. (Article 17 — Right to Erasure)</div>
+                </div>
+                <button class="gdpr-btn danger" onclick="requestDelete()" aria-label="Delete account and data">🗑 Delete</button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /card -->
+
+        <!-- CHECK-IN WIDGET -->
+        <div class="checkin-card">
+          <div class="card-title" style="margin-bottom:1.25rem" id="checkinTitle">Location Check-in</div>
+          <label class="loc-label" for="loc-grid">Select Your Current Location</label>
+          <div class="loc-grid" id="loc-grid" role="radiogroup" aria-labelledby="checkinTitle">
+            <button class="loc-btn" data-loc="assembly-a" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Assembly Point A, Fire Assembly Point, plus 10 points">
+              <span class="loc-icon" aria-hidden="true">🔴</span>
+              <div class="loc-info"><div class="loc-name">Assembly Point A</div><div class="loc-type">Fire Assembly Point</div></div>
+              <span class="loc-pts">+10</span>
+            </button>
+            <button class="loc-btn" data-loc="assembly-b" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Assembly Point B, Fire Assembly Point, plus 10 points">
+              <span class="loc-icon" aria-hidden="true">🔴</span>
+              <div class="loc-info"><div class="loc-name">Assembly Point B</div><div class="loc-type">Fire Assembly Point</div></div>
+              <span class="loc-pts">+10</span>
+            </button>
+            <button class="loc-btn" data-loc="workshop-main" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Main Hall Workshop, Safety Workshop Venue, plus 15 points">
+              <span class="loc-icon" aria-hidden="true">🏛</span>
+              <div class="loc-info"><div class="loc-name">Main Hall Workshop</div><div class="loc-type">Safety Workshop Venue</div></div>
+              <span class="loc-pts">+15</span>
+            </button>
+            <button class="loc-btn" data-loc="workshop-lab" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Science Lab Safety, Safety Workshop Venue, plus 15 points">
+              <span class="loc-icon" aria-hidden="true">🧪</span>
+              <div class="loc-info"><div class="loc-name">Science Lab Safety</div><div class="loc-type">Safety Workshop Venue</div></div>
+              <span class="loc-pts">+15</span>
+            </button>
+            <button class="loc-btn" data-loc="library" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Main Library, Productive Campus Space, plus 5 points">
+              <span class="loc-icon" aria-hidden="true">📚</span>
+              <div class="loc-info"><div class="loc-name">Main Library</div><div class="loc-type">Productive Campus Space</div></div>
+              <span class="loc-pts">+5</span>
+            </button>
+            <button class="loc-btn" data-loc="dining" onclick="selectLoc(this)" role="radio" aria-checked="false" aria-label="Dining Hall, Campus Venue, plus 5 points">
+              <span class="loc-icon" aria-hidden="true">🍽</span>
+              <div class="loc-info"><div class="loc-name">Dining Hall</div><div class="loc-type">Campus Venue</div></div>
+              <span class="loc-pts">+5</span>
+            </button>
+          </div>
+          <div class="coords-bar" aria-live="polite">
+            <div class="coords-dot" id="coordsDot" aria-hidden="true"></div>
+            <span id="coordsText">No location selected</span>
+          </div>
+          <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()" disabled aria-label="Check in at selected location">
+            <span class="shimmer" aria-hidden="true"></span>TAP TO CHECK IN
+          </button>
+          <div class="val-panel" id="valPanel" role="status" aria-live="polite">
+            <div class="val-title" id="valTitle"></div>
+            <div class="val-body" id="valBody"></div>
+          </div>
+        </div>
+
+      </div><!-- /left col -->
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+        <div class="card">
+          <div class="card-title">Upcoming Fire Safety Events</div>
+          <div class="event-item">
+            <div class="event-time"><div class="day">TUE</div>11:00</div>
+            <div class="event-body">
+              <div class="event-name">Evacuation Drill — Block C<span class="event-live">● LIVE</span></div>
+              <div class="event-loc">📍 Assembly Point A & B</div>
+            </div>
+            <span class="event-pts">+10 pts</span>
+          </div>
+          <div class="event-item">
+            <div class="event-time"><div class="day">WED</div>14:30</div>
+            <div class="event-body"><div class="event-name">Fire Safety Workshop</div><div class="event-loc">📍 Main Hall Workshop</div></div>
+            <span class="event-pts">+15 pts</span>
+          </div>
+          <div class="event-item">
+            <div class="event-time"><div class="day">FRI</div>09:00</div>
+            <div class="event-body"><div class="event-name">Lab Safety Certification</div><div class="event-loc">📍 Science Lab Safety Room</div></div>
+            <span class="event-pts">+15 pts</span>
+          </div>
+          <div class="event-item">
+            <div class="event-time"><div class="day">MON</div>10:00</div>
+            <div class="event-body"><div class="event-name">Extinguisher Training</div><div class="event-loc">📍 Sports Centre Carpark</div></div>
+            <span class="event-pts">+20 pts</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Facility Status</div>
+          <div class="fac-grid">
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">🔴</span><div><div class="fac-name">Assembly Point A</div><div class="fac-status normal" id="fac-assembly-a">● OPEN</div></div></div>
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">🔴</span><div><div class="fac-name">Assembly Point B</div><div class="fac-status normal" id="fac-assembly-b">● OPEN</div></div></div>
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">🏛</span><div><div class="fac-name">Main Hall</div><div class="fac-status normal" id="fac-workshop-main">● AVAILABLE</div></div></div>
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">🧪</span><div><div class="fac-name">Science Lab</div><div class="fac-status normal" id="fac-workshop-lab">● AVAILABLE</div></div></div>
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">📚</span><div><div class="fac-name">Main Library</div><div class="fac-status normal" id="fac-library">● OPEN</div></div></div>
+            <div class="fac-item"><span style="font-size:1.4rem" aria-hidden="true">🍽</span><div><div class="fac-name">Dining Hall</div><div class="fac-status normal" id="fac-dining">● SERVING</div></div></div>
+          </div>
+          <div style="margin-top:1.25rem;display:flex;gap:.75rem;align-items:center;border-top:1px solid var(--border);padding-top:1rem">
+            <button onclick="toggleDrill()" id="drillToggle" style="padding:.5rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--fire)';this.style.color='var(--fire)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'" aria-label="Simulate fire drill">⚡ SIMULATE FIRE DRILL</button>
+            <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted)">Demo only</span>
+          </div>
+        </div>
+
+      </div><!-- /right col -->
+    </div><!-- /grid-2 -->
+
+    <!-- TRANSACTION LOG -->
+    <div class="card grid-1">
+      <div class="card-title">
+        Transaction Log
+        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--blue);letter-spacing:.06em">🔒 READ-ONLY · WRITE-PROTECTED</span>
+      </div>
+      <div class="log-wrap">
+        <table class="log-table" role="table" aria-label="Immutable transaction log">
+          <thead>
+            <tr>
+              <th scope="col">Timestamp</th>
+              <th scope="col">Location</th>
+              <th scope="col">Type</th>
+              <th scope="col">Status</th>
+              <th scope="col">Points</th>
+              <th scope="col">Device / Session Token</th>
+              <th scope="col">SHA-256 Hash</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+      <div class="immutable-note">🔒 In a production system, these entries are stored in a write-only, append-only database table (INSERT-only permissions). Records can never be edited or deleted — only read. This satisfies the Data Integrity requirement and prevents points fraud. Session tokens allow each check-in to be traced to the authenticated device, supporting audit trails under the University's Information Security Policy.</div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="grid-2">
+      <!-- LEADERBOARD -->
       <div class="card">
-        <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('profile',this)">Profile</button>
-          <button class="tab-btn" onclick="switchTab('prefs',this)">Preferences</button>
-          <button class="tab-btn" onclick="switchTab('privacy',this)">Privacy &amp; GDPR</button>
+        <div class="card-title">Safety Leaderboard</div>
+        <div class="lb-row"><span class="lb-rank top">01</span><span class="lb-name">Priya Mehta</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:100%"></div></div><span class="lb-pts">310 pts</span></div>
+        <div class="lb-row"><span class="lb-rank top">02</span><span class="lb-name">Tom Bradley</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:80%"></div></div><span class="lb-pts">248 pts</span></div>
+        <div class="lb-row lb-mine" id="myLbRow">
+          <span class="lb-rank top">03</span>
+          <span class="lb-name">Jamie Souter ★</span>
+          <div class="lb-bar-wrap"><div class="lb-bar" id="myLbBar" style="width:39%"></div></div>
+          <span class="lb-pts" id="lbPoints">— pts</span>
         </div>
-
-        <!-- TAB: PROFILE -->
-        <div class="tab-panel active" id="tab-profile">
-          <div class="profile-header">
-            <div class="avatar">JS</div>
-            <div>
-              <div class="profile-name">Jamie Souter</div>
-              <div class="profile-id">ID: STU-2024-0847</div>
-              <div class="role-chip student" id="roleChip">🎓 Student</div>
-            </div>
-          </div>
-          <div class="points-display">
-            <span class="points-num" id="pointsDisplay">—</span>
-            <span class="points-label">pts total</span>
-          </div>
-          <div class="progress-wrap">
-            <div class="progress-label">
-              <span id="levelLabel">LEVEL 3 — FIRE WARDEN</span>
-              <span id="progressLabel">— / 200 pts</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-bar" id="progressBar" style="width:0%"></div>
-              <div class="progress-marker" style="left:50%"></div>
-              <div class="progress-marker" style="left:100%"></div>
-            </div>
-          </div>
-          <div class="badge-row">
-            <span class="badge" id="b1">🏅 First Drill</span>
-            <span class="badge" id="b2">🔥 Triple Check-in</span>
-            <span class="badge" id="b3">⚡ Fast Response</span>
-            <span class="badge" id="b4">🛡 Safety Champion</span>
-            <span class="badge" id="b5">🚒 Expert Warden</span>
-          </div>
-        </div>
-
-        <!-- TAB: PREFERENCES -->
-        <div class="tab-panel" id="tab-prefs">
-          <div class="pref-section">
-            <div class="pref-title">Safety Notification Channel</div>
-            <div class="pref-row">
-              <div><div class="pref-label">Drill Alerts</div><div class="pref-desc">How you receive live fire drill notifications</div></div>
-              <div class="tog-wrap">
-                <button class="tog-opt active" id="notif-app" onclick="setPref('notifChannel','app',this,'notif-sms','notif-both')">App Push</button>
-                <button class="tog-opt" id="notif-sms" onclick="setPref('notifChannel','sms',this,'notif-app','notif-both')">SMS</button>
-                <button class="tog-opt" id="notif-both" onclick="setPref('notifChannel','both',this,'notif-app','notif-sms')">Both</button>
-              </div>
-            </div>
-            <div class="pref-row">
-              <div><div class="pref-label">Workshop Reminders</div><div class="pref-desc">24-hour reminder before safety workshops</div></div>
-              <label class="switch"><input type="checkbox" id="pref-reminders" onchange="savePrefToggle('workshopReminders',this)"><span class="slider"></span></label>
-            </div>
-            <div class="pref-row">
-              <div><div class="pref-label">Points Earned Alerts</div><div class="pref-desc">Notify when points are credited to profile</div></div>
-              <label class="switch"><input type="checkbox" id="pref-points" onchange="savePrefToggle('pointsAlerts',this)"><span class="slider"></span></label>
-            </div>
-            <div class="pref-row">
-              <div><div class="pref-label">Emergency Broadcasts</div><div class="pref-desc">Always on — required for safety compliance</div></div>
-              <label class="switch"><input type="checkbox" disabled checked><span class="slider" style="opacity:.45;cursor:not-allowed"></span></label>
-            </div>
-          </div>
-
-          <div class="pref-section">
-            <div class="pref-title">User Role &amp; Access Level</div>
-            <div class="tog-wrap" style="margin-bottom:.75rem;flex-wrap:wrap">
-              <button class="tog-opt" id="role-student" onclick="setRole('student',this)">🎓 Student</button>
-              <button class="tog-opt" id="role-warden"  onclick="setRole('warden',this)">🦺 Fire Warden</button>
-              <button class="tog-opt" id="role-staff"   onclick="setRole('staff',this)">🏛 Staff</button>
-            </div>
-            <div class="role-info-box">
-              <div class="ri-title">Role-Based Access Control (RBAC)</div>
-              <div class="ri-row"><span>View own check-in log</span><span class="ri-access yes">✓ All roles</span></div>
-              <div class="ri-row"><span>View all student logs</span><span class="ri-access no" id="ra-all">✗ Student</span></div>
-              <div class="ri-row"><span>Trigger drill simulation</span><span class="ri-access no" id="ra-drill">✗ Student</span></div>
-              <div class="ri-row"><span>Edit facility status</span><span class="ri-access no" id="ra-fac">✗ Student</span></div>
-              <div class="ri-row"><span>Export all student data</span><span class="ri-access no" id="ra-export">✗ Student</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB: PRIVACY & GDPR -->
-        <div class="tab-panel" id="tab-privacy">
-          <div class="privacy-header">
-            <span class="ph-icon">🛡</span>
-            <div>
-              <div class="ph-title">Your Data Rights (UK GDPR)</div>
-              <div class="ph-desc">Live Campus Hub processes your location and engagement data to award points and ensure fire safety compliance. You have the right to access, export, and erase your data at any time under the UK GDPR 2018.</div>
-            </div>
-          </div>
-
-          <div class="priv-section">
-            <div class="priv-section-title">Visibility Controls</div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Appear on Safety Leaderboard</div>
-                <div class="pr-desc">If disabled, your name and score are hidden from other students. Your points still count internally toward compliance scoring.</div>
-              </div>
-              <label class="switch"><input type="checkbox" id="priv-leaderboard" onchange="toggleLeaderboard(this)"><span class="slider"></span></label>
-            </div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Share Attendance with Personal Tutor</div>
-                <div class="pr-desc">Allows your personal tutor to view fire drill attendance for welfare and pastoral purposes only.</div>
-              </div>
-              <label class="switch"><input type="checkbox" id="priv-tutor" onchange="savePrefToggle('shareTutor',this)"><span class="slider"></span></label>
-            </div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Location History Retention</div>
-                <div class="pr-desc">GPS coordinates stored for check-in validation. Automatically purged after 90 days per retention policy.</div>
-              </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
-                <span class="consent-tag granted">✓ Consented</span>
-                <span style="font-family:var(--mono);font-size:.57rem;color:var(--muted)">Required for check-in</span>
-              </div>
-            </div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Analytics &amp; Product Improvement</div>
-                <div class="pr-desc">Anonymised usage data shared with campus IS team to improve the Hub experience.</div>
-              </div>
-              <label class="switch"><input type="checkbox" id="priv-analytics" onchange="savePrefToggle('analytics',this)"><span class="slider"></span></label>
-            </div>
-          </div>
-
-          <div class="priv-section">
-            <div class="priv-section-title">Data Retention Summary</div>
-            <div class="drb-grid">
-              <div class="drb-cell"><div class="drb-label">Check-in Logs</div><div class="drb-val" style="color:var(--amber)">3 Years</div></div>
-              <div class="drb-cell"><div class="drb-label">GPS Coordinates</div><div class="drb-val" style="color:var(--fire)">90 Days</div></div>
-              <div class="drb-cell"><div class="drb-label">Points Balance</div><div class="drb-val" style="color:var(--safe)">Persistent</div></div>
-            </div>
-          </div>
-
-          <div class="priv-section">
-            <div class="priv-section-title">Your Rights</div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Download My Data</div>
-                <div class="pr-desc">Export all profile, check-in history, and points data as JSON. (Article 15 UK GDPR — Right of Access)</div>
-              </div>
-              <button class="gdpr-btn primary" onclick="exportMyData()">⬇ Export</button>
-            </div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Request Data Correction</div>
-                <div class="pr-desc">Flag incorrect check-in records for review by a campus data officer. (Article 16 — Right to Rectification)</div>
-              </div>
-              <button class="gdpr-btn muted-btn" onclick="toast('Request submitted. A data officer will respond within 30 days.','warn')">✏ Request</button>
-            </div>
-            <div class="priv-row">
-              <div class="pr-info">
-                <div class="pr-label">Delete My Account &amp; Data</div>
-                <div class="pr-desc">Permanently removes your profile and all stored browser data. (Article 17 — Right to Erasure)</div>
-              </div>
-              <button class="gdpr-btn danger" onclick="confirmDelete()">🗑 Delete</button>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /card -->
-
-      <!-- CHECK-IN WIDGET -->
-      <div class="checkin-card">
-        <div class="card-title" style="margin-bottom:1.25rem">Location Check-in</div>
-        <label class="loc-label">Select Your Current Location</label>
-        <div class="loc-grid">
-          <button class="loc-btn" data-loc="assembly-a" onclick="selectLoc(this)">
-            <span class="loc-icon">🔴</span>
-            <div class="loc-info"><div class="loc-name">Assembly Point A</div><div class="loc-type">Fire Assembly Point</div></div>
-            <span class="loc-pts">+10</span>
-          </button>
-          <button class="loc-btn" data-loc="assembly-b" onclick="selectLoc(this)">
-            <span class="loc-icon">🔴</span>
-            <div class="loc-info"><div class="loc-name">Assembly Point B</div><div class="loc-type">Fire Assembly Point</div></div>
-            <span class="loc-pts">+10</span>
-          </button>
-          <button class="loc-btn" data-loc="workshop-main" onclick="selectLoc(this)">
-            <span class="loc-icon">🏛</span>
-            <div class="loc-info"><div class="loc-name">Main Hall Workshop</div><div class="loc-type">Safety Workshop Venue</div></div>
-            <span class="loc-pts">+15</span>
-          </button>
-          <button class="loc-btn" data-loc="workshop-lab" onclick="selectLoc(this)">
-            <span class="loc-icon">🧪</span>
-            <div class="loc-info"><div class="loc-name">Science Lab Safety</div><div class="loc-type">Safety Workshop Venue</div></div>
-            <span class="loc-pts">+15</span>
-          </button>
-          <button class="loc-btn" data-loc="library" onclick="selectLoc(this)">
-            <span class="loc-icon">📚</span>
-            <div class="loc-info"><div class="loc-name">Main Library</div><div class="loc-type">Productive Campus Space</div></div>
-            <span class="loc-pts">+5</span>
-          </button>
-          <button class="loc-btn" data-loc="dining" onclick="selectLoc(this)">
-            <span class="loc-icon">🍽</span>
-            <div class="loc-info"><div class="loc-name">Dining Hall</div><div class="loc-type">Campus Venue</div></div>
-            <span class="loc-pts">+5</span>
-          </button>
-        </div>
-        <div class="coords-bar">
-          <div class="coords-dot" id="coordsDot"></div>
-          <span id="coordsText">No location selected</span>
-        </div>
-        <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()" disabled>
-          <span class="shimmer"></span>TAP TO CHECK IN
-        </button>
-        <div class="val-panel" id="valPanel">
-          <div class="val-title" id="valTitle"></div>
-          <div class="val-body" id="valBody"></div>
-        </div>
+        <div class="lb-row"><span class="lb-rank">04</span><span class="lb-name">Amara Osei</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:35%"></div></div><span class="lb-pts">108 pts</span></div>
+        <div class="lb-row"><span class="lb-rank">05</span><span class="lb-name">Callum Wright</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:28%"></div></div><span class="lb-pts">88 pts</span></div>
+        <div class="lb-privacy-note" id="lbNote">Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy & GDPR tab</div>
       </div>
 
-    </div><!-- /left col -->
-
-    <!-- RIGHT COL -->
-    <div style="display:flex;flex-direction:column;gap:1.5rem">
-
+      <!-- SECURITY -->
       <div class="card">
-        <div class="card-title">Upcoming Fire Safety Events</div>
-        <div class="event-item">
-          <div class="event-time"><div class="day">TUE</div>11:00</div>
-          <div class="event-body">
-            <div class="event-name">Evacuation Drill — Block C<span class="event-live">● LIVE</span></div>
-            <div class="event-loc">📍 Assembly Point A &amp; B</div>
-          </div>
-          <span class="event-pts">+10 pts</span>
-        </div>
-        <div class="event-item">
-          <div class="event-time"><div class="day">WED</div>14:30</div>
-          <div class="event-body"><div class="event-name">Fire Safety Workshop</div><div class="event-loc">📍 Main Hall Workshop</div></div>
-          <span class="event-pts">+15 pts</span>
-        </div>
-        <div class="event-item">
-          <div class="event-time"><div class="day">FRI</div>09:00</div>
-          <div class="event-body"><div class="event-name">Lab Safety Certification</div><div class="event-loc">📍 Science Lab Safety Room</div></div>
-          <span class="event-pts">+15 pts</span>
-        </div>
-        <div class="event-item">
-          <div class="event-time"><div class="day">MON</div>10:00</div>
-          <div class="event-body"><div class="event-name">Extinguisher Training</div><div class="event-loc">📍 Sports Centre Carpark</div></div>
-          <span class="event-pts">+20 pts</span>
+        <div class="card-title">Security & Data Integrity</div>
+        <div class="sec-grid">
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">💾</span><div><div class="sec-label">localStorage Persistence</div><div class="sec-desc">Points & prefs survive browser close</div></div><span class="sec-check">✓</span></div>
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">🔒</span><div><div class="sec-label">Duplicate Guard</div><div class="sec-desc">One check-in per drill per student</div></div><span class="sec-check">✓</span></div>
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">📍</span><div><div class="sec-label">GPS Geofence</div><div class="sec-desc">Coords verified against geofence</div></div><span class="sec-check">✓</span></div>
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">🪪</span><div><div class="sec-label">Session Token Auth</div><div class="sec-desc">Unique token bound to each transaction</div></div><span class="sec-check">✓</span></div>
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">#️⃣</span><div><div class="sec-label">Tamper Hash</div><div class="sec-desc">Hash per immutable log entry</div></div><span class="sec-check">✓</span></div>
+          <div class="sec-item"><span style="font-size:1.1rem" aria-hidden="true">🛡</span><div><div class="sec-label">UK GDPR Compliant</div><div class="sec-desc">Export, deletion & visibility rights</div></div><span class="sec-check">✓</span></div>
         </div>
       </div>
-
-      <div class="card">
-        <div class="card-title">Facility Status</div>
-        <div class="fac-grid">
-          <div class="fac-item"><span style="font-size:1.4rem">🔴</span><div><div class="fac-name">Assembly Point A</div><div class="fac-status normal" id="fac-assembly-a">● OPEN</div></div></div>
-          <div class="fac-item"><span style="font-size:1.4rem">🔴</span><div><div class="fac-name">Assembly Point B</div><div class="fac-status normal" id="fac-assembly-b">● OPEN</div></div></div>
-          <div class="fac-item"><span style="font-size:1.4rem">🏛</span><div><div class="fac-name">Main Hall</div><div class="fac-status normal" id="fac-workshop-main">● AVAILABLE</div></div></div>
-          <div class="fac-item"><span style="font-size:1.4rem">🧪</span><div><div class="fac-name">Science Lab</div><div class="fac-status normal" id="fac-workshop-lab">● AVAILABLE</div></div></div>
-          <div class="fac-item"><span style="font-size:1.4rem">📚</span><div><div class="fac-name">Main Library</div><div class="fac-status normal" id="fac-library">● OPEN</div></div></div>
-          <div class="fac-item"><span style="font-size:1.4rem">🍽</span><div><div class="fac-name">Dining Hall</div><div class="fac-status normal" id="fac-dining">● SERVING</div></div></div>
-        </div>
-        <div style="margin-top:1.25rem;display:flex;gap:.75rem;align-items:center;border-top:1px solid var(--border);padding-top:1rem">
-          <button onclick="toggleDrill()" id="drillToggle" style="padding:.5rem 1rem;background:var(--dark);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--fire)';this.style.color='var(--fire)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚡ SIMULATE FIRE DRILL</button>
-          <span style="font-family:var(--mono);font-size:.6rem;color:var(--muted)">Demo only</span>
-        </div>
-      </div>
-
-    </div><!-- /right col -->
-  </div><!-- /grid-2 -->
-
-  <!-- TRANSACTION LOG -->
-  <div class="card grid-1">
-    <div class="card-title">
-      Transaction Log
-      <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--blue);letter-spacing:.06em">🔒 READ-ONLY · WRITE-PROTECTED</span>
     </div>
-    <div class="log-wrap">
-      <table class="log-table">
+  </div><!-- /studentView -->
+
+  <!-- ════════════════════════════════════════
+       ADMIN DASHBOARD (Admin-only)
+       ════════════════════════════════════════ -->
+  <div class="admin-panel" id="adminView" role="region" aria-label="Admin dashboard">
+    <div class="admin-stat-grid">
+      <div class="admin-stat-cell">
+        <span class="label">Total Students</span>
+        <span class="value safe" id="adminTotalStudents">247</span>
+      </div>
+      <div class="admin-stat-cell">
+        <span class="label">Checked In Today</span>
+        <span class="value safe" id="adminCheckedIn">198</span>
+      </div>
+      <div class="admin-stat-cell">
+        <span class="label">Missing Students</span>
+        <span class="value danger" id="adminMissing">49</span>
+      </div>
+      <div class="admin-stat-cell">
+        <span class="label">Drill Completion</span>
+        <span class="value amber" id="adminDrillComp">80%</span>
+      </div>
+    </div>
+
+    <div class="admin-grid">
+      <!-- ATTENDANCE TABLE -->
+      <div class="card">
+        <div class="card-title">Attendance Overview</div>
+        <div class="admin-section-title">Today's Check-ins by Location</div>
+        <table class="admin-table" role="table" aria-label="Attendance by location">
+          <thead>
+            <tr>
+              <th scope="col">Location</th>
+              <th scope="col">Checked In</th>
+              <th scope="col">Missing</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="adminAttendanceBody">
+            <tr><td>Assembly Point A</td><td>112</td><td>12</td><td><span class="status-badge present">● OPEN</span></td></tr>
+            <tr><td>Assembly Point B</td><td>86</td><td>8</td><td><span class="status-badge present">● OPEN</span></td></tr>
+            <tr><td>Main Hall Workshop</td><td>0</td><td>0</td><td><span class="status-badge partial">● NO EVENT</span></td></tr>
+            <tr><td>Science Lab</td><td>0</td><td>0</td><td><span class="status-badge partial">● NO EVENT</span></td></tr>
+            <tr><td>Main Library</td><td>0</td><td>0</td><td><span class="status-badge partial">● NO EVENT</span></td></tr>
+            <tr><td>Dining Hall</td><td>0</td><td>0</td><td><span class="status-badge partial">● NO EVENT</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- MISSING STUDENTS -->
+      <div class="card">
+        <div class="card-title">Missing Students</div>
+        <div class="admin-section-title">Students Not Checked In Today</div>
+        <table class="admin-table" role="table" aria-label="Missing students list">
+          <thead>
+            <tr>
+              <th scope="col">Student</th>
+              <th scope="col">ID</th>
+              <th scope="col">Block</th>
+              <th scope="col">Last Seen</th>
+            </tr>
+          </thead>
+          <tbody id="adminMissingBody">
+            <tr class="missing-row"><td>Emma Watson</td><td>STU-2024-0032</td><td>Block A</td><td>3 days ago</td></tr>
+            <tr class="missing-row"><td>James Chen</td><td>STU-2024-0156</td><td>Block C</td><td>1 day ago</td></tr>
+            <tr class="missing-row"><td>Sarah Miller</td><td>STU-2024-0089</td><td>Block B</td><td>5 days ago</td></tr>
+            <tr class="missing-row"><td>Omar Hassan</td><td>STU-2024-0211</td><td>Block D</td><td>2 days ago</td></tr>
+            <tr class="missing-row"><td>Lisa Park</td><td>STU-2024-0045</td><td>Block A</td><td>1 day ago</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:1rem;font-family:var(--mono);font-size:.6rem;color:var(--muted)">
+          Showing 5 of 49 missing students. <button class="gdpr-btn muted-btn" style="font-size:.55rem;padding:.3rem .5rem" onclick="toast('Full export requires admin authentication','warn')">View All</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRILL COMPLETION -->
+    <div class="card grid-1">
+      <div class="card-title">Drill Completion History</div>
+      <div class="admin-section-title">Last 5 Fire Drills</div>
+      <table class="admin-table" role="table" aria-label="Drill completion history">
         <thead>
           <tr>
-            <th>Timestamp</th>
-            <th>Location</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Points</th>
-            <th>Device / Session Token</th>
-            <th>SHA-256 Hash</th>
+            <th scope="col">Date</th>
+            <th scope="col">Location</th>
+            <th scope="col">Participation</th>
+            <th scope="col">Duration</th>
+            <th scope="col">Status</th>
           </tr>
         </thead>
-        <tbody id="logBody"></tbody>
+        <tbody id="adminDrillBody">
+          <tr><td>17 May 2026</td><td>Block C — Assembly A & B</td><td>198 / 247 (80%)</td><td>4m 32s</td><td><span class="status-badge present">✓ COMPLETE</span></td></tr>
+          <tr><td>10 May 2026</td><td>Block A — Assembly A</td><td>231 / 247 (94%)</td><td>3m 18s</td><td><span class="status-badge present">✓ COMPLETE</span></td></tr>
+          <tr><td>03 May 2026</td><td>Block B — Assembly B</td><td>189 / 247 (77%)</td><td>5m 12s</td><td><span class="status-badge partial">⚠ PARTIAL</span></td></tr>
+          <tr><td>26 Apr 2026</td><td>Block D — Assembly A</td><td>245 / 247 (99%)</td><td>2m 45s</td><td><span class="status-badge present">✓ COMPLETE</span></td></tr>
+          <tr><td>19 Apr 2026</td><td>Block C — Assembly B</td><td>201 / 247 (81%)</td><td>4m 08s</td><td><span class="status-badge present">✓ COMPLETE</span></td></tr>
+        </tbody>
       </table>
     </div>
-    <div class="immutable-note">🔒 In a production system, these entries are stored in a write-only, append-only database table (INSERT-only permissions). Records can never be edited or deleted — only read. This satisfies the Data Integrity requirement and prevents points fraud. Session tokens allow each check-in to be traced to the authenticated device, supporting audit trails under the University's Information Security Policy.</div>
-  </div>
 
-  <!-- BOTTOM ROW -->
-  <div class="grid-2">
-    <!-- LEADERBOARD -->
-    <div class="card">
-      <div class="card-title">Safety Leaderboard</div>
-      <div class="lb-row"><span class="lb-rank top">01</span><span class="lb-name">Priya Mehta</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:100%"></div></div><span class="lb-pts">310 pts</span></div>
-      <div class="lb-row"><span class="lb-rank top">02</span><span class="lb-name">Tom Bradley</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:80%"></div></div><span class="lb-pts">248 pts</span></div>
-      <div class="lb-row lb-mine" id="myLbRow">
-        <span class="lb-rank top">03</span>
-        <span class="lb-name">Jamie Souter ★</span>
-        <div class="lb-bar-wrap"><div class="lb-bar" id="myLbBar" style="width:39%"></div></div>
-        <span class="lb-pts" id="lbPoints">— pts</span>
+    <!-- RECENT LOGS -->
+    <div class="card grid-1">
+      <div class="card-title">
+        Recent System Logs
+        <span style="margin-left:auto;font-family:var(--mono);font-size:.6rem;color:var(--blue);letter-spacing:.06em">🔒 ADMIN VIEW</span>
       </div>
-      <div class="lb-row"><span class="lb-rank">04</span><span class="lb-name">Amara Osei</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:35%"></div></div><span class="lb-pts">108 pts</span></div>
-      <div class="lb-row"><span class="lb-rank">05</span><span class="lb-name">Callum Wright</span><div class="lb-bar-wrap"><div class="lb-bar" style="width:28%"></div></div><span class="lb-pts">88 pts</span></div>
-      <div class="lb-privacy-note" id="lbNote">Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy &amp; GDPR tab</div>
+      <div class="log-wrap">
+        <table class="log-table" role="table" aria-label="Recent system logs">
+          <thead>
+            <tr>
+              <th scope="col">Timestamp</th>
+              <th scope="col">User</th>
+              <th scope="col">Action</th>
+              <th scope="col">Location</th>
+              <th scope="col">Status</th>
+              <th scope="col">Session</th>
+            </tr>
+          </thead>
+          <tbody id="adminLogBody">
+            <tr><td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">08:45:12</td><td>Jamie Souter</td><td>Check-in</td><td>Assembly Point A</td><td><span class="tag validated">Validated</span></td><td class="mono-cell">SES-A1B2C3D4</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">08:43:55</td><td>Priya Mehta</td><td>Check-in</td><td>Assembly Point A</td><td><span class="tag validated">Validated</span></td><td class="mono-cell">SES-X9Y8Z7W6</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">08:41:20</td><td>Tom Bradley</td><td>Check-in</td><td>Assembly Point B</td><td><span class="tag validated">Validated</span></td><td class="mono-cell">SES-Q1R2S3T4</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">08:38:47</td><td>Amara Osei</td><td>Check-in</td><td>Assembly Point A</td><td><span class="tag duplicate">Duplicate</span></td><td class="mono-cell">SES-U5V6W7X8</td></tr>
+            <tr><td style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">08:35:33</td><td>Callum Wright</td><td>Check-in</td><td>Assembly Point B</td><td><span class="tag validated">Validated</span></td><td class="mono-cell">SES-M1N2O3P4</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="immutable-note">🔒 Admin view shows all student check-ins across all locations. Data is read-only and immutable per University Information Security Policy.</div>
+    </div>
+  </div><!-- /adminView -->
+
+  <!-- ════════════════════════════════════════
+       ANALYTICS DASHBOARD
+       ════════════════════════════════════════ -->
+  <div class="admin-panel" id="analyticsView" role="region" aria-label="Analytics dashboard">
+    <div class="analytics-summary">
+      <div class="analytics-cell">
+        <span class="label">Avg Points / Student</span>
+        <span class="value" style="color:var(--amber)">142</span>
+      </div>
+      <div class="analytics-cell">
+        <span class="label">Total Check-ins</span>
+        <span class="value" style="color:var(--safe)">1,847</span>
+      </div>
+      <div class="analytics-cell">
+        <span class="label">Participation Rate</span>
+        <span class="value" style="color:var(--fire)">84%</span>
+      </div>
+      <div class="analytics-cell">
+        <span class="label">Growth vs Last Month</span>
+        <span class="value" style="color:var(--safe)">+12%</span>
+      </div>
     </div>
 
-    <!-- SECURITY -->
-    <div class="card">
-      <div class="card-title">Security &amp; Data Integrity</div>
-      <div class="sec-grid">
-        <div class="sec-item"><span style="font-size:1.1rem">💾</span><div><div class="sec-label">localStorage Persistence</div><div class="sec-desc">Points &amp; prefs survive browser close</div></div><span class="sec-check">✓</span></div>
-        <div class="sec-item"><span style="font-size:1.1rem">🔒</span><div><div class="sec-label">Duplicate Guard</div><div class="sec-desc">One check-in per drill per student</div></div><span class="sec-check">✓</span></div>
-        <div class="sec-item"><span style="font-size:1.1rem">📍</span><div><div class="sec-label">GPS Geofence</div><div class="sec-desc">Coords verified against geofence</div></div><span class="sec-check">✓</span></div>
-        <div class="sec-item"><span style="font-size:1.1rem">🪪</span><div><div class="sec-label">Session Token Auth</div><div class="sec-desc">Unique token bound to each transaction</div></div><span class="sec-check">✓</span></div>
-        <div class="sec-item"><span style="font-size:1.1rem">#️⃣</span><div><div class="sec-label">Tamper Hash</div><div class="sec-desc">Hash per immutable log entry</div></div><span class="sec-check">✓</span></div>
-        <div class="sec-item"><span style="font-size:1.1rem">🛡</span><div><div class="sec-label">UK GDPR Compliant</div><div class="sec-desc">Export, deletion &amp; visibility rights</div></div><span class="sec-check">✓</span></div>
+    <div class="chart-grid">
+      <!-- ATTENDANCE CHART -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Weekly Attendance Trend</span>
+          <span style="font-family:var(--mono);font-size:.55rem;color:var(--muted)">Last 8 Weeks</span>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="attendanceChart" aria-label="Bar chart showing weekly attendance over last 8 weeks"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:var(--safe)"></span>Present</span>
+          <span><span class="legend-dot" style="background:var(--danger)"></span>Missing</span>
+        </div>
+      </div>
+
+      <!-- POINTS GROWTH CHART -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Points Growth Trajectory</span>
+          <span style="font-family:var(--mono);font-size:.55rem;color:var(--muted)">Semester Trend</span>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="pointsChart" aria-label="Line chart showing points growth over semester"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:var(--amber)"></span>Average Points</span>
+          <span><span class="legend-dot" style="background:var(--fire)"></span>Top Performer</span>
+        </div>
       </div>
     </div>
-  </div>
+
+    <div class="chart-grid">
+      <!-- LOCATION PIE CHART -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Check-ins by Location</span>
+          <span style="font-family:var(--mono);font-size:.55rem;color:var(--muted)">This Semester</span>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="locationChart" aria-label="Doughnut chart showing check-in distribution by location"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:#ff4d00"></span>Assembly A</span>
+          <span><span class="legend-dot" style="background:#ff8a00"></span>Assembly B</span>
+          <span><span class="legend-dot" style="background:#2979ff"></span>Workshops</span>
+          <span><span class="legend-dot" style="background:#00e676"></span>Other</span>
+        </div>
+      </div>
+
+      <!-- COMPLIANCE CHART -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Compliance Score Distribution</span>
+          <span style="font-family:var(--mono);font-size:.55rem;color:var(--muted)">All Students</span>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="complianceChart" aria-label="Bar chart showing compliance score distribution"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:var(--safe)"></span>A+ (5+ check-ins)</span>
+          <span><span class="legend-dot" style="background:var(--amber)"></span>A (3-4 check-ins)</span>
+          <span><span class="legend-dot" style="background:var(--fire)"></span>B (1-2 check-ins)</span>
+          <span><span class="legend-dot" style="background:var(--danger)"></span>C (0 check-ins)</span>
+        </div>
+      </div>
+    </div>
+  </div><!-- /analyticsView -->
 
 </main>
 
@@ -636,13 +973,64 @@ const LOCS = {
 };
 
 // ══════════════════════════════════════
-//  SESSION TOKEN  (survives until tab close)
+//  SESSION TOKEN
 // ══════════════════════════════════════
 const SESSION_TOKEN = (() => {
   let t = sessionStorage.getItem('hub_sess');
   if (!t) { t = 'SES-' + Math.random().toString(36).slice(2,10).toUpperCase(); sessionStorage.setItem('hub_sess', t); }
   return t;
 })();
+
+// ══════════════════════════════════════
+//  PASSWORD PROTECTION
+// ══════════════════════════════════════
+const ADMIN_PIN = '1234';
+let pwCallback = null;
+let pwAttempts = 0;
+
+function openPwModal(callback) {
+  pwCallback = callback;
+  document.getElementById('pwModal').classList.add('active');
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwError').classList.remove('show');
+  document.getElementById('pwInput').focus();
+}
+
+function closePwModal() {
+  document.getElementById('pwModal').classList.remove('active');
+  pwCallback = null;
+}
+
+function verifyPassword() {
+  const input = document.getElementById('pwInput').value;
+  if (input === ADMIN_PIN) {
+    closePwModal();
+    pwAttempts = 0;
+    if (pwCallback) pwCallback();
+  } else {
+    pwAttempts++;
+    document.getElementById('pwError').classList.add('show');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+    if (pwAttempts >= 3) {
+      toast('Too many failed attempts. Please try again later.', 'err');
+      closePwModal();
+      pwAttempts = 0;
+    }
+  }
+}
+
+// Enter key on password input
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') verifyPassword();
+});
+
+// Escape key to close modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && document.getElementById('pwModal').classList.contains('active')) {
+    closePwModal();
+  }
+});
 
 // ══════════════════════════════════════
 //  STATE  ← load from localStorage
@@ -694,7 +1082,7 @@ function flashStorageBadge() {
 }
 
 // ══════════════════════════════════════
-//  TRANSACTION LOG  ← persisted
+//  TRANSACTION LOG
 // ══════════════════════════════════════
 function defaultLog() {
   return [
@@ -730,7 +1118,7 @@ function mockHash(data) {
 }
 
 // ══════════════════════════════════════
-//  RENDER LOG  (immutable — no edit controls)
+//  RENDER LOG
 // ══════════════════════════════════════
 function renderLog() {
   const tbody = document.getElementById('logBody');
@@ -746,7 +1134,6 @@ function renderLog() {
       <td class="mono-cell" title="Session Token: ${e.token}">${e.token}</td>
       <td class="mono-cell" title="Full hash: ${e.hash}">${e.hash}</td>
     `;
-    // Prevent editing
     tr.style.userSelect = 'none';
     tr.addEventListener('contextmenu', ev => ev.preventDefault());
     tbody.appendChild(tr);
@@ -771,7 +1158,6 @@ function pushLog(loc, type, status, pts) {
 //  UI REFRESH
 // ══════════════════════════════════════
 function refreshUI() {
-  // Stats
   document.getElementById('totalPoints').textContent  = S.points;
   document.getElementById('pointsDisplay').textContent = S.points;
   document.getElementById('safetyCount').textContent  = S.safetyCheckins;
@@ -785,6 +1171,7 @@ function refreshUI() {
 
   const pct = Math.min((S.points / 200) * 100, 100);
   document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressBar').parentElement.setAttribute('aria-valuenow', S.points);
   document.getElementById('progressLabel').textContent = `${S.points} / 200 pts`;
   document.getElementById('myLbBar').style.width = Math.min((S.points/310)*100, 100) + '%';
 }
@@ -794,7 +1181,6 @@ function refreshBadges() {
     if (S.badges[id]) document.getElementById(id).classList.add('earned');
     else document.getElementById(id).classList.remove('earned');
   });
-  // auto-unlock
   if (S.safetyCheckins >= 1 && !S.badges.b1) { S.badges.b1=true; document.getElementById('b1').classList.add('earned'); }
   if (S.safetyCheckins >= 3 && !S.badges.b2) { S.badges.b2=true; document.getElementById('b2').classList.add('earned'); }
   if (S.safetyCheckins >= 5 && !S.badges.b4) { S.badges.b4=true; document.getElementById('b4').classList.add('earned'); }
@@ -810,7 +1196,7 @@ function refreshPrefs() {
   document.getElementById('priv-leaderboard').checked = !!S.showOnLeaderboard;
   document.getElementById('priv-tutor').checked      = !!S.shareTutor;
   document.getElementById('priv-analytics').checked  = !!S.analytics;
-  ['role-student','role-warden','role-staff'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['role-student','role-warden','role-staff','role-admin'].forEach(id => document.getElementById(id).classList.remove('active'));
   const roleEl = document.getElementById('role-'+S.role);
   if (roleEl) roleEl.classList.add('active');
   applyRole(S.role);
@@ -821,10 +1207,10 @@ function refreshLeaderboard() {
   const note = document.getElementById('lbNote');
   if (S.showOnLeaderboard) {
     row.classList.remove('lb-hidden-row');
-    note.innerHTML = 'Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy &amp; GDPR tab';
+    note.innerHTML = 'Visibility: <span style="color:var(--safe)">● Visible</span> — manage in Privacy & GDPR tab';
   } else {
     row.classList.add('lb-hidden-row');
-    note.innerHTML = 'Visibility: <span style="color:var(--danger)">● Hidden</span> — manage in Privacy &amp; GDPR tab';
+    note.innerHTML = 'Visibility: <span style="color:var(--danger)">● Hidden</span> — manage in Privacy & GDPR tab';
   }
 }
 
@@ -841,9 +1227,13 @@ function initAll() {
 // ══════════════════════════════════════
 function switchTab(id, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
 }
 
 // ══════════════════════════════════════
@@ -852,7 +1242,11 @@ function switchTab(id, btn) {
 function setPref(key, val, activeBtn, ...deactivateIds) {
   S[key] = val;
   activeBtn.classList.add('active');
-  deactivateIds.forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  activeBtn.setAttribute('aria-pressed', 'true');
+  deactivateIds.forEach(id => { 
+    const el=document.getElementById(id); 
+    if(el) { el.classList.remove('active'); el.setAttribute('aria-pressed', 'false'); }
+  });
   saveState();
   toast('Preference saved.');
 }
@@ -871,12 +1265,16 @@ function toggleLeaderboard(checkbox) {
 }
 
 // ══════════════════════════════════════
-//  ROLE
+//  ROLE & VIEW SWITCHING
 // ══════════════════════════════════════
 function setRole(role, btn) {
   S.role = role;
-  ['role-student','role-warden','role-staff'].forEach(id => document.getElementById(id).classList.remove('active'));
+  ['role-student','role-warden','role-staff','role-admin'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('active'); el.setAttribute('aria-pressed', 'false'); }
+  });
   btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
   applyRole(role);
   saveState();
   toast('Role updated: ' + role);
@@ -884,25 +1282,48 @@ function setRole(role, btn) {
 
 function applyRole(role) {
   const chip = document.getElementById('roleChip');
-  const labels = {student:'🎓 Student', warden:'🦺 Fire Warden', staff:'🏛 Staff'};
+  const indicator = document.getElementById('roleIndicator');
+  const labels = {student:'🎓 Student', warden:'🦺 Fire Warden', staff:'🏛 Staff', admin:'🔐 Admin'};
   chip.textContent = labels[role] || labels.student;
   chip.className = 'role-chip ' + role;
+  chip.setAttribute('aria-label', 'Role: ' + (labels[role] || labels.student).replace(/^[^ ]+ /, ''));
+  indicator.textContent = role.toUpperCase();
+
   // RBAC table
   if (role === 'warden') {
-    setRBAC('partial','yes','partial','no');
+    setRBAC('partial','yes','partial','no','no');
   } else if (role === 'staff') {
-    setRBAC('yes','yes','yes','no');
+    setRBAC('yes','yes','yes','no','no');
+  } else if (role === 'admin') {
+    setRBAC('yes','yes','yes','yes','yes');
   } else {
-    setRBAC('no','no','no','no');
+    setRBAC('no','no','no','no','no');
+  }
+
+  // Show/hide views
+  const studentView = document.getElementById('studentView');
+  const adminView = document.getElementById('adminView');
+  const analyticsView = document.getElementById('analyticsView');
+
+  if (role === 'admin') {
+    studentView.style.display = 'none';
+    adminView.classList.add('active');
+    analyticsView.classList.add('active');
+    initCharts();
+  } else {
+    studentView.style.display = 'block';
+    adminView.classList.remove('active');
+    analyticsView.classList.remove('active');
   }
 }
 
-function setRBAC(all, drill, fac, exp) {
+function setRBAC(all, drill, fac, exp, admin) {
   const map = {
     'ra-all':    {val:all,   yes:'✓ Warden+', no:'✗ Student', partial:'⚡ Cohort only'},
     'ra-drill':  {val:drill, yes:'✓ Warden+', no:'✗ Student', partial:'⚡ Warden+'},
     'ra-fac':    {val:fac,   yes:'✓ Staff',   no:'✗ Student', partial:'⚡ Warden+'},
-    'ra-export': {val:'no',  yes:'✓ Staff',   no:'✗ All',     partial:'✗ All'},
+    'ra-export': {val:exp,   yes:'✓ Admin',   no:'✗ All',     partial:'✗ All'},
+    'ra-admin':  {val:admin, yes:'✓ Admin',   no:'✗ Student', partial:'✗ Student'},
   };
   Object.entries(map).forEach(([id, cfg]) => {
     const el = document.getElementById(id);
@@ -917,8 +1338,12 @@ function setRBAC(all, drill, fac, exp) {
 // ══════════════════════════════════════
 let selectedLoc = null;
 function selectLoc(btn) {
-  document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.loc-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.setAttribute('aria-checked', 'false');
+  });
   btn.classList.add('selected');
+  btn.setAttribute('aria-checked', 'true');
   selectedLoc = btn.dataset.loc;
   const info = LOCS[selectedLoc];
   document.getElementById('coordsDot').classList.add('live');
@@ -941,14 +1366,12 @@ function doCheckin() {
   btn.disabled = true;
 
   setTimeout(() => {
-    // STEP 3: GPS validation
     if (!gpsCheck(selectedLoc)) {
       showVal('error','✗ Location Mismatch', `GPS coordinates do not match <strong>${info.name}</strong>. You must be physically present at this location.`);
       pushLog(info.name, info.type, 'rejected', 0);
       resetBtn();
       return;
     }
-    // STEP 4: Duplicate guard
     const key = selectedLoc + '-' + (drillActive ? DRILL_ID : todayKey());
     if (S.checkinHistory.includes(key)) {
       showVal('warning','⚠ Already Checked In', `You already checked in at <strong>${info.name}</strong> for this session. Points integrity prevents duplicate awards.`);
@@ -956,13 +1379,12 @@ function doCheckin() {
       resetBtn();
       return;
     }
-    // ✓ Award
     S.checkinHistory.push(key);
     awardPts(info.pts, info.name, info.type, info.safe);
   }, 1300);
 }
 
-function gpsCheck() { return true; } // Production: geofence radius check
+function gpsCheck() { return true; }
 
 function todayKey() {
   const d = new Date();
@@ -973,14 +1395,10 @@ function awardPts(pts, name, type, isSafety) {
   S.lastPts = S.points;
   S.points += pts;
   if (isSafety) S.safetyCheckins++;
-
-  // ── SAVE ON UPDATE ──
   saveState();
-
   refreshUI();
   refreshBadges();
-  saveState(); // save badge changes too
-
+  saveState();
   burst(pts);
   pushLog(name, type, 'validated', pts);
   toast('+' + pts + ' pts awarded for ' + name + '!');
@@ -995,7 +1413,10 @@ function awardPts(pts, name, type, isSafety) {
   setTimeout(() => {
     resetBtn();
     selectedLoc = null;
-    document.querySelectorAll('.loc-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.loc-btn').forEach(b => {
+      b.classList.remove('selected');
+      b.setAttribute('aria-checked', 'false');
+    });
     document.getElementById('coordsDot').classList.remove('live');
     document.getElementById('coordsText').textContent = 'No location selected';
   }, 3000);
@@ -1043,6 +1464,21 @@ function toggleDrill() {
     const el = document.getElementById('fac-'+k);
     el.className = 'fac-status ' + (drillActive ? 'drill' : 'normal');
     el.textContent = drillActive ? '● DRILL ACTIVE' : '● OPEN';
+  });
+}
+
+// ══════════════════════════════════════
+//  PASSWORD-PROTECTED ACTIONS
+// ══════════════════════════════════════
+function requestExport() {
+  openPwModal(() => {
+    exportMyData();
+  });
+}
+
+function requestDelete() {
+  openPwModal(() => {
+    confirmDelete();
   });
 }
 
@@ -1110,6 +1546,148 @@ function tickClock() {
 }
 setInterval(tickClock, 1000);
 tickClock();
+
+// ══════════════════════════════════════
+//  CHART.JS ANALYTICS
+// ══════════════════════════════════════
+let chartsInitialized = false;
+
+function initCharts() {
+  if (chartsInitialized) return;
+  chartsInitialized = true;
+
+  Chart.defaults.color = '#777';
+  Chart.defaults.borderColor = '#2a2a2a';
+  Chart.defaults.font.family = "'JetBrains Mono', monospace";
+  Chart.defaults.font.size = 10;
+
+  // Attendance Chart (Bar)
+  new Chart(document.getElementById('attendanceChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6','Week 7','Week 8'],
+      datasets: [
+        { label: 'Present', data: [210,225,198,240,215,230,198,247], backgroundColor: '#00e676', borderRadius: 2 },
+        { label: 'Missing', data: [37,22,49,7,32,17,49,0], backgroundColor: '#ff1744', borderRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, grid: { color: '#2a2a2a' } }
+      }
+    }
+  });
+
+  // Points Growth Chart (Line)
+  new Chart(document.getElementById('pointsChart'), {
+    type: 'line',
+    data: {
+      labels: ['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May'],
+      datasets: [
+        { 
+          label: 'Average Points', 
+          data: [45,68,92,110,125,138,142,148,155], 
+          borderColor: '#ffb300', 
+          backgroundColor: 'rgba(255,179,0,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#ffb300'
+        },
+        { 
+          label: 'Top Performer', 
+          data: [80,120,160,200,240,280,310,340,380], 
+          borderColor: '#ff4d00', 
+          backgroundColor: 'transparent',
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#ff4d00',
+          borderDash: [5,5]
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: '#2a2a2a' } }
+      }
+    }
+  });
+
+  // Location Chart (Doughnut)
+  new Chart(document.getElementById('locationChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Assembly A','Assembly B','Workshops','Other'],
+      datasets: [{
+        data: [520,410,380,537],
+        backgroundColor: ['#ff4d00','#ff8a00','#2979ff','#00e676'],
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Compliance Chart (Bar)
+  new Chart(document.getElementById('complianceChart'), {
+    type: 'bar',
+    data: {
+      labels: ['A+ (5+)','A (3-4)','B (1-2)','C (0)'],
+      datasets: [{
+        label: 'Students',
+        data: [89,112,38,8],
+        backgroundColor: ['#00e676','#ffb300','#ff4d00','#ff1744'],
+        borderRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: '#2a2a2a' } }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════
+//  KEYBOARD NAVIGATION
+// ══════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+  // Tab navigation for location buttons
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const locBtns = Array.from(document.querySelectorAll('.loc-btn'));
+    const current = locBtns.find(b => b.classList.contains('selected'));
+    if (current) {
+      const idx = locBtns.indexOf(current);
+      const nextIdx = e.key === 'ArrowDown' 
+        ? (idx + 2) % locBtns.length 
+        : (idx - 2 + locBtns.length) % locBtns.length;
+      locBtns[nextIdx].focus();
+      e.preventDefault();
+    }
+  }
+
+  // Enter to check in when location selected
+  if (e.key === 'Enter' && selectedLoc && document.activeElement.classList.contains('loc-btn')) {
+    doCheckin();
+  }
+});
 
 // ══════════════════════════════════════
 //  BOOT
